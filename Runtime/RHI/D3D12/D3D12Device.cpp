@@ -1,4 +1,5 @@
 #include "D3D12Device.h"
+#include "D3D12DescriptorManager.h"
 #include "../../Core/Log.h"
 
 void D3D12Device::LogAdapterDesc(const DXGI_ADAPTER_DESC1& inDesc)
@@ -18,6 +19,7 @@ D3D12Device::D3D12Device()
     , m_AdapterHandle(nullptr)
     , m_DeviceHandle(nullptr)
     , m_QueueHandles {nullptr, nullptr, nullptr}
+    , m_DescriptorManager(nullptr)
 {
     
 }
@@ -121,6 +123,13 @@ bool D3D12Device::Init()
         OUTPUT_D3D12_FAILED_RESULT(m_DeviceHandle->CreateCommandQueue(&Desc, IID_PPV_ARGS(&tempQueue)));
         m_QueueHandles[i] = tempQueue;
     }
+
+    m_DescriptorManager = std::make_unique<D3D12DescriptorManager>(*this);
+    if(!m_DescriptorManager->Init())
+    {
+        Log::Error("[D3D12] Failed to create the descriptor manager");
+        return false;
+    }
     
     return true;
 }
@@ -143,7 +152,7 @@ void D3D12Device::ShutdownInternal()
 
 bool D3D12Device::IsValid() const
 {
-    bool valid = m_FactoryHandle != nullptr && m_AdapterHandle != nullptr && m_DeviceHandle != nullptr;
+    bool valid = m_FactoryHandle != nullptr && m_AdapterHandle != nullptr && m_DeviceHandle != nullptr && m_DescriptorManager != nullptr;
     for(auto i : m_QueueHandles)
     {
         valid = valid && i != nullptr;

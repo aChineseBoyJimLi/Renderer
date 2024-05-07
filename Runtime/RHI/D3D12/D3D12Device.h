@@ -2,6 +2,7 @@
 #include "../RHIDevice.h"
 #include "D3D12Definitions.h"
 
+class D3D12DescriptorManager;
 class D3D12Fence : public RHIFence
 {
 public:
@@ -72,6 +73,7 @@ public:
     IDXGIAdapter1* GetAdapter() const { return m_AdapterHandle.Get(); }
     ID3D12Device5* GetDevice() const { return m_DeviceHandle.Get(); }
     ID3D12CommandQueue* GetCommandQueue(ERHICommandQueueType inQueueType) const { return m_QueueHandles[static_cast<uint8_t>(inQueueType)].Get(); }
+    D3D12DescriptorManager& GetDescriptorManager() { return *m_DescriptorManager; }
     
     // no mGPU support so far
     static uint32_t GetNodeMask() { return 0; }
@@ -90,6 +92,7 @@ private:
     Microsoft::WRL::ComPtr<IDXGIAdapter1>               m_AdapterHandle;
     Microsoft::WRL::ComPtr<ID3D12Device5>               m_DeviceHandle;
     std::array<Microsoft::WRL::ComPtr<ID3D12CommandQueue>, COMMAND_QUEUES_COUNT> m_QueueHandles;
+    std::unique_ptr<D3D12DescriptorManager>             m_DescriptorManager;
 
     D3D12_FEATURE_DATA_D3D12_OPTIONS5 m_Feature5Data{}; // RayTracing, RenderPass
     D3D12_FEATURE_DATA_D3D12_OPTIONS6 m_Feature6Data{}; // VariableShadingRate

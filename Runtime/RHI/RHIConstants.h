@@ -135,6 +135,16 @@ enum class ERHIRegisterType : uint8_t
     Count
 };
 
+enum class ERHIResourceViewType : uint8_t
+{
+    RTV,
+    DSV,
+    SRV,
+    UAV,
+    CBV,
+    Sampler,
+};
+
 enum class ERHIShaderType : uint8_t
 {
     Compute,

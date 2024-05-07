@@ -18,8 +18,7 @@ bool RhiTestApp::Init()
     m_Fence = RHI::GetDevice()->CreateRhiFence();
     m_Semaphore = RHI::GetDevice()->CreateRhiSemaphore();
     m_CommandList = RHI::GetDevice()->CreateCommandList();
-
-
+    
     RHIPipelineBindingLayoutDesc desc;
     desc.Items.emplace_back(ERHIBindingResourceType::Buffer_CBV, 0);
     desc.Items.emplace_back(ERHIBindingResourceType::Buffer_CBV, 1);
@@ -31,7 +30,7 @@ bool RhiTestApp::Init()
 
     m_CullingShaderByteCode = std::make_shared<Blob>();
     
-    std::filesystem::path path = std::filesystem::current_path() / ".." / "Shaders" / "VisibleCullingVk.cs.spv";
+    std::filesystem::path path = std::filesystem::current_path() / ".." / "Shaders" / "VisibleCullingVk.cs.bin";
     m_CullingShaderByteCode->ReadBinaryFile(path);
     
     m_CullingShader = RHI::GetDevice()->CreateShader(ERHIShaderType::Compute);

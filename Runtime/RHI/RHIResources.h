@@ -20,6 +20,13 @@ public:
     virtual const RHIResourceHeapDesc& GetDesc() const = 0;
 };
 
+struct RHIResourceAllocation
+{
+    std::shared_ptr<RHIResourceHeap> Heap;
+    size_t Size;
+    size_t Offset;
+};
+
 ///////////////////////////////////////////////////////////////////////////////////
 /// RHIBuffer
 ///////////////////////////////////////////////////////////////////////////////////
@@ -53,6 +60,25 @@ struct RHIBufferSubRange
     bool operator!=(const RHIBufferSubRange& Other) const
     {
         return !(*this == Other);
+    }
+};
+
+template<>
+struct std::hash<RHIBufferSubRange>
+{
+    size_t operator()(const RHIBufferSubRange& subRange) const noexcept
+    {
+        std::hash<uint64_t> hasher64;
+        std::hash<uint32_t> hasher32;
+
+        size_t h1 = hasher64(subRange.Offset);
+        size_t h2 = hasher64(subRange.Size);
+        size_t h3 = hasher32(subRange.FirstElement);
+        size_t h4 = hasher32(subRange.NumElements);
+        size_t h5 = hasher32(subRange.StructureByteStride);
+        
+        size_t combinedHash = h1 ^ (h2 << 1) ^ (h3 << 3) ^ (h4 << 4) ^ (h5 << 5);
+        return combinedHash;
     }
 };
 
@@ -107,6 +133,23 @@ struct RHITextureSubResource
     bool operator!=(const RHITextureSubResource& Other) const
     {
         return !(*this == Other);
+    }
+};
+
+template<>
+struct std::hash<RHITextureSubResource>
+{
+    size_t operator()(const RHITextureSubResource& subResource) const noexcept
+    {
+        std::hash<uint32_t> hasher32;
+
+        size_t h1 = hasher32(subResource.FirstMipSlice);
+        size_t h2 = hasher32(subResource.NumMipSlices);
+        size_t h3 = hasher32(subResource.FirstArraySlice);
+        size_t h4 = hasher32(subResource.NumArraySlices);
+
+        size_t combinedHash = h1 ^ (h2 << 1) ^ (h3 << 3) ^ (h4 << 4);
+        return combinedHash;
     }
 };
 
