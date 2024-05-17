@@ -6,8 +6,8 @@
 void RunApp(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     RHI::Init(false);
-    std::unique_ptr<RhiTestApp> app = std::make_unique<RhiTestApp>(1280
-            , 720
+    std::unique_ptr<RhiTestApp> app = std::make_unique<RhiTestApp>(380
+            , 200
             , hInstance
             , TEXT("RhiTestApp App"));
         

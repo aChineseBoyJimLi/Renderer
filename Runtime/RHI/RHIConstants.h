@@ -104,6 +104,14 @@ enum class ERHIFormat : uint8_t
     Count,
 };
 
+enum class ERHIFormatKind : uint8_t
+{
+    Integer,
+    Normalized,
+    Float,
+    DepthStencil
+};
+
 enum class ERHITextureDimension : uint8_t
 {
     // Texture1D and Texture1D Array are not supported
@@ -269,7 +277,6 @@ enum class ERHIResourceHeapType : uint8_t
 
 enum class ERHIHeapUsage : uint8_t
 {
-    Unknown = 0,
     Buffer,
     Texture
 };
@@ -281,20 +288,50 @@ enum class ERHICpuAccessMode : uint8_t
     Write
 };
 
-enum class ERHIResourceState : uint8_t
+enum class ERHIResourceStates : uint32_t
 {
-    
+    None = 0,
+    Present = 1,
+    // ConstantBuffer = 1,
+    // VertexBuffer = ConstantBuffer << 1,
+    // IndexBuffer = VertexBuffer << 1,
+    GpuReadOnly = Present << 1,
+    IndirectCommands = GpuReadOnly << 1,
+    UnorderedAccess = IndirectCommands << 1,
+    RenderTarget = UnorderedAccess << 1,
+    ShadingRateSource = RenderTarget << 1,
+    CopySrc = ShadingRateSource << 1,
+    CopyDst = CopySrc << 1,
+    DepthStencilWrite = CopyDst << 1,
+    DepthStencilRead = DepthStencilWrite << 1,
+    AccelerationStructure = DepthStencilRead << 1,
+    OcclusionPrediction = AccelerationStructure << 1
 };
+ENUM_CLASS_FLAG_OPERATORS(ERHIResourceStates)
 
 enum class ERHIBufferUsage : uint32_t
 {
-    
+    None = 0,
+    VertexBuffer = 1,
+    IndexBuffer = VertexBuffer << 1,
+    ConstantBuffer = IndexBuffer << 1,
+    UnorderedAccess = ConstantBuffer << 1,
+    ShaderResource = UnorderedAccess << 1,
+    IndirectCommands = ShaderResource << 1,
+    ShaderTable = IndirectCommands << 1,
+    AccelerationStructureStorage = ShaderTable << 1,
+    AccelerationStructureBuildInput = AccelerationStructureStorage << 1,
 };
 ENUM_CLASS_FLAG_OPERATORS(ERHIBufferUsage)
 
 enum class ERHITextureUsage : uint32_t
 {
-    
+    None           = 0,
+    ShaderResource = 1,
+    RenderTarget   = ShaderResource << 1,
+    DepthStencil   = RenderTarget << 1,
+    UnorderedAccess = DepthStencil << 1,
+    ShadingRateSource = UnorderedAccess
 };
 ENUM_CLASS_FLAG_OPERATORS(ERHITextureUsage)
 

@@ -2,15 +2,19 @@
 
 #include "RHIDefinitions.h"
 
+class RHICommandList;
+class RHIPipelineBindingLayout;
+class RHIResourceHeap;
+
 ///////////////////////////////////////////////////////////////////////////////////
 /// RHIResourceHeap
 ///////////////////////////////////////////////////////////////////////////////////
 struct RHIResourceHeapDesc
 {
     ERHIResourceHeapType Type = ERHIResourceHeapType::DeviceLocal;
-    ERHIHeapUsage Usage = ERHIHeapUsage::Unknown;
+    ERHIHeapUsage Usage = ERHIHeapUsage::Buffer;
     uint64_t Size = 0;
-    uint64_t Alignment = 0;
+    uint64_t Alignment = 65536;
     uint32_t TypeFilter = ~0u; // using for Vulkan
 };
 
@@ -18,13 +22,10 @@ class RHIResourceHeap : public RHIObject
 {
 public:
     virtual const RHIResourceHeapDesc& GetDesc() const = 0;
-};
-
-struct RHIResourceAllocation
-{
-    std::shared_ptr<RHIResourceHeap> Heap;
-    size_t Size;
-    size_t Offset;
+    virtual bool IsEmpty() const = 0;
+    virtual bool TryAllocate(size_t inSize, size_t& outOffset) = 0;
+    virtual void Free(size_t inOffset, size_t inSize) = 0;
+    virtual uint32_t GetTotalChunks() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -36,8 +37,8 @@ struct RHIBufferDesc
     uint64_t Stride = 0;
     ERHIFormat Format = ERHIFormat::Unknown;
     ERHICpuAccessMode CpuAccess = ERHICpuAccessMode::None;
-    ERHIResourceState InitialState;
-    ERHIBufferUsage Usages;
+    // ERHIResourceStates InitialState = ERHIResourceStates::None;
+    ERHIBufferUsage Usages = ERHIBufferUsage::None;
 };
 
 struct RHIBufferSubRange
@@ -86,15 +87,20 @@ class RHIBuffer : public RHIObject
 {
 public:
     virtual bool IsVirtual() const = 0;
-    virtual bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap, uint64_t inOffset = 0) = 0;
+    virtual bool IsManaged() const = 0;
+    virtual bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap) = 0;
+    virtual size_t GetOffsetInHeap() const = 0;
     virtual void* Map(uint64_t inSize, uint64_t inOffset = 0) = 0;
     virtual void  Unmap() = 0;
     virtual void  WriteData(const void* inData, uint64_t inSize, uint64_t inOffset = 0) = 0;
     virtual void  ReadData(void* outData, uint64_t inSize, uint64_t inOffset = 0) = 0;
     virtual const RHIBufferDesc& GetDesc() const = 0;
+    virtual uint32_t GetMemTypeFilter() const = 0; // Using for vulkan buffer memory allocation, d3d12 return UINT32_MAX
+    virtual size_t GetSizeInByte() const = 0;
+    virtual size_t GetAlignment() const = 0;
     virtual RHIResourceGpuAddress GetGpuAddress() const = 0;
-    virtual void ChangeState(const RHICommandList& inCmdList, ERHIResourceState inState, const RHIBufferSubRange& subRange = RHIBufferSubRange::All) = 0;
-    virtual ERHIResourceState GetState(const RHIBufferSubRange& subRange = RHIBufferSubRange::All) const = 0;
+    // virtual void ChangeState(const RHICommandList& inCmdList, ERHIResourceStates inState, const RHIBufferSubRange& subRange = RHIBufferSubRange::All) = 0;
+    // virtual ERHIResourceStates GetState(const RHIBufferSubRange& subRange = RHIBufferSubRange::All) const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -110,8 +116,8 @@ struct RHITextureDesc
     uint32_t ArraySize = 1;
     uint32_t MipLevels = 1;
     uint32_t SampleCount = 1;
-    ERHIResourceState InitialState;
-    ERHITextureUsage Usages;
+    ERHITextureUsage Usages = ERHITextureUsage::ShaderResource;
+    RHIClearValue ClearValue = RHIClearValue::Transparent;
 };
 
 struct RHITextureSubResource
@@ -157,11 +163,16 @@ class RHITexture : public RHIObject
 {
 public:
     virtual bool IsVirtual() const = 0;
-    virtual bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap, uint64_t inOffset = 0) = 0;
+    virtual bool IsManaged() const = 0;
+    virtual bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap) = 0;
+    virtual size_t GetOffsetInHeap() const = 0;
     virtual const RHITextureDesc& GetDesc() const = 0;
-    virtual RHIResourceGpuAddress GetGpuAddress() const = 0;
-    virtual void ChangeState(const RHICommandList& inCmdList, ERHIResourceState inState, const RHITextureSubResource& subResource = RHITextureSubResource::All) = 0;
-    virtual ERHIResourceState GetState(const RHITextureSubResource& subResource = RHITextureSubResource::All) const = 0;
+    virtual uint32_t GetMemTypeFilter() const = 0; // Using for vulkan texture memory allocation, d3d12 return UINT32_MAX
+    virtual size_t GetSizeInByte() const = 0;
+    virtual size_t GetAlignment() const = 0;
+    virtual const RHIClearValue& GetClearValue() = 0;
+    // virtual void ChangeState(const RHICommandList& inCmdList, ERHIResourceStates inState, const RHITextureSubResource& subResource = RHITextureSubResource::All) = 0;
+    // virtual ERHIResourceStates GetState(const RHITextureSubResource& subResource = RHITextureSubResource::All) const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -218,7 +229,7 @@ struct RHIRayTracingInstanceDesc
     RHIResourceGpuAddress* BLAS = nullptr;
 };
 
-struct RHIRayTracingDesc
+struct RHIAccelerationStructureDesc
 {
     std::vector<RHIRayTracingGeometryTriangleDesc> Triangles;
     std::vector<RHIRayTracingGeometryAABBDesc> AABBs;
@@ -231,8 +242,8 @@ struct RHIRayTracingDesc
 class RHIAccelerationStructure : public RHIObject
 {
 public:
-    virtual const RHIRayTracingDesc& GetDesc() const = 0;
-    virtual void Build(const RHICommandList& inCmdList) = 0;
+    virtual const RHIAccelerationStructureDesc& GetDesc() const = 0;
+    virtual void Build(const std::shared_ptr<RHICommandList>& inCmdList) = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -259,8 +270,6 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////
 struct RHIFrameBufferDesc
 {
-    uint32_t Width = 0;
-    uint32_t Height = 0;
     uint32_t NumRenderTargets = 0;
     std::shared_ptr<RHITexture> RenderTargets[RHIRenderTargetsMaxCount];
     std::shared_ptr<RHITexture> DepthStencil;
@@ -269,5 +278,14 @@ struct RHIFrameBufferDesc
 class RHIFrameBuffer : public RHIObject
 {
 public:
-    virtual const RHIFrameBufferDesc& GetDesc() = 0;
+    virtual bool Resize(std::shared_ptr<RHITexture>* inRenderTargets, std::shared_ptr<RHITexture> inDepthStencil) = 0;
+    virtual uint32_t GetFrameBufferWidth() const = 0;
+    virtual uint32_t GetFrameBufferHeight() const = 0;
+    virtual ERHIFormat GetRenderTargetFormat(uint32_t inIndex) const = 0;
+    virtual ERHIFormat GetDepthStencilFormat() const = 0;
+    virtual std::shared_ptr<RHITexture> GetRenderTarget(uint32_t inIndex) const = 0;
+    virtual std::shared_ptr<RHITexture> GetDepthStencil() const = 0;
+    virtual const RHIFrameBufferDesc& GetDesc() const = 0;
+    virtual uint32_t GetNumRenderTargets() const = 0;
+    virtual bool HasDepthStencil() const = 0;
 };

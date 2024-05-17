@@ -1,6 +1,7 @@
 #include "VulkanPipelineState.h"
 #include "VulkanDevice.h"
 #include "../../Core/Log.h"
+#include "../../Core/Templates.h"
 
 std::shared_ptr<RHIShader> VulkanDevice::CreateShader(ERHIShaderType inType)
 {
@@ -47,7 +48,7 @@ bool VulkanComputePipeline::Init()
         return false;
     }
 
-    VulkanPipelineBindingLayout* bindingLayout = dynamic_cast<VulkanPipelineBindingLayout*>(m_Desc.BindingLayout.get());
+    VulkanPipelineBindingLayout* bindingLayout = CheckCast<VulkanPipelineBindingLayout*>(m_Desc.BindingLayout.get());
     if(bindingLayout == nullptr || !bindingLayout->IsValid())
     {
         Log::Error("[Vulkan] The compute pipeline binding layout is invalid");
@@ -64,7 +65,7 @@ bool VulkanComputePipeline::Init()
     computePipelineInfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     computePipelineInfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     computePipelineInfo.stage.module = m_ComputeShaderModule;
-    computePipelineInfo.stage.pName = m_Desc.ComputeShader->GetEntryName();
+    computePipelineInfo.stage.pName = m_Desc.ComputeShader->GetEntryName().c_str();
     computePipelineInfo.stage.pSpecializationInfo = nullptr;
     computePipelineInfo.stage.flags = 0;
     computePipelineInfo.stage.pNext = nullptr;

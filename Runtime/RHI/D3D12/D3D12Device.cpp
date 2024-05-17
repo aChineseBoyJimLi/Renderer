@@ -1,6 +1,10 @@
 #include "D3D12Device.h"
+
+#include "D3D12CommandList.h"
 #include "D3D12DescriptorManager.h"
+#include "../RHICommandList.h"
 #include "../../Core/Log.h"
+#include "../../Core/Templates.h"
 
 void D3D12Device::LogAdapterDesc(const DXGI_ADAPTER_DESC1& inDesc)
 {
@@ -158,6 +162,56 @@ bool D3D12Device::IsValid() const
         valid = valid && i != nullptr;
     }
     return valid;
+}
+
+void D3D12Device::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCommandList, const std::shared_ptr<RHIFence>& inSignalFence,
+                            const std::vector<std::shared_ptr<RHISemaphore>>* inWaitForSemaphores, 
+                            const std::vector<std::shared_ptr<RHISemaphore>>* inSignalSemaphores)
+{
+    D3D12CommandList* commandList = CheckCast<D3D12CommandList*>(inCommandList.get());
+    if(commandList && commandList->IsValid())
+    {
+        if(!commandList->IsClosed())
+        {
+            commandList->End();
+        }
+
+        ID3D12CommandQueue* queue = GetCommandQueue(inCommandList->GetQueueType());
+        ID3D12CommandList* cmdListHandle = commandList->GetCommandList();
+        queue->ExecuteCommandLists(1, &cmdListHandle);
+
+        if(inSignalFence != nullptr && inSignalFence->IsValid())
+        {
+            inSignalFence->Reset();
+            ID3D12Fence* fence = CheckCast<D3D12Fence*>(inSignalFence.get())->GetFence();
+            queue->Signal(fence, FENCE_COMPLETED_VALUE);
+        }
+
+        if(inWaitForSemaphores && !inWaitForSemaphores->empty())
+        {
+            for(const auto& waitSemaphore : *inWaitForSemaphores)
+            {
+                D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(waitSemaphore.get());
+                if(d3dSemaphore && d3dSemaphore->IsValid())
+                {
+                    queue->Wait(d3dSemaphore->GetSemaphore(), FENCE_COMPLETED_VALUE);
+                }
+            }
+        }
+
+        if(inSignalSemaphores && !inSignalSemaphores->empty())
+        {
+            for(const auto& signalSemaphore : *inSignalSemaphores)
+            {
+                D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(signalSemaphore.get());
+                if(d3dSemaphore && d3dSemaphore->IsValid())
+                {
+                    d3dSemaphore->Reset();
+                    queue->Signal(d3dSemaphore->GetSemaphore(), FENCE_COMPLETED_VALUE);
+                }
+            }
+        }
+    }
 }
     
 std::shared_ptr<RHIFence> D3D12Device::CreateRhiFence()

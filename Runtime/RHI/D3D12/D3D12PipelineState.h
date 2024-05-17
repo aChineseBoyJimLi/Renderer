@@ -3,6 +3,11 @@
 #include "D3D12Definitions.h"
 #include "../RHIPipelineState.h"
 
+class D3D12Device;
+
+///////////////////////////////////////////////////////////////////////////////////
+/// D3D12PipelineBindingLayout
+///////////////////////////////////////////////////////////////////////////////////
 class D3D12PipelineBindingLayout : public RHIPipelineBindingLayout
 {
 public:
@@ -25,7 +30,7 @@ protected:
     void SetNameInternal() override;
     
 private:
-    friend class D3D12Device;
+    friend D3D12Device;
     D3D12PipelineBindingLayout(D3D12Device& inDevice, const RHIPipelineBindingLayoutDesc& inBindingItems);
     void ShutdownInternal();
 
@@ -34,6 +39,9 @@ private:
     Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignature;
 };
 
+///////////////////////////////////////////////////////////////////////////////////
+/// D3D12Shader
+///////////////////////////////////////////////////////////////////////////////////
 class D3D12Shader : public RHIShader
 {
 public:
@@ -44,22 +52,30 @@ public:
 
     ERHIShaderType GetType() const override {return m_Type;}
     void SetEntryName(const char* inName) override { m_EntryName = inName; }
-    const char* GetEntryName() const override { return m_EntryName; }
+    const std::string& GetEntryName() const override { return m_EntryName; }
     std::shared_ptr<Blob> GetByteCode() const override {return m_ShaderBlob;}
-    void SetByteCode(std::shared_ptr<Blob> inByteCode) override { m_ShaderBlob = inByteCode;}
+    void SetByteCode(std::shared_ptr<Blob> inByteCode) override;
+    const uint8_t* GetData() const override { return m_ShaderBlob->GetData(); }
+    size_t GetSize() const override { return m_ShaderBlob->GetSize(); }
+    const D3D12_SHADER_BYTECODE* GetByteCodeD3D() const { return &m_ShaderByteCodeD3D; }
 
 private:
-    friend class D3D12Device;
+    friend D3D12Device;
     D3D12Shader(ERHIShaderType inType)
         : m_Type(inType)
         , m_EntryName("main")
-        , m_ShaderBlob(nullptr) {}
+        , m_ShaderBlob(nullptr)
+        , m_ShaderByteCodeD3D() {}
 
     ERHIShaderType m_Type;
-    const char* m_EntryName;
+    std::string m_EntryName;
     std::shared_ptr<Blob> m_ShaderBlob;
+    D3D12_SHADER_BYTECODE m_ShaderByteCodeD3D;
 };
 
+///////////////////////////////////////////////////////////////////////////////////
+/// D3D12ComputePipeline
+///////////////////////////////////////////////////////////////////////////////////
 class D3D12ComputePipeline : public RHIComputePipeline
 {
 public:
@@ -73,11 +89,121 @@ protected:
     void SetNameInternal() override;
     
 private:
-    friend class D3D12Device;
+    friend D3D12Device;
     D3D12ComputePipeline(D3D12Device& inDevice, const RHIComputePipelineDesc& inDesc);
     void ShutdownInternal();
 
     D3D12Device& m_Device;
     RHIComputePipelineDesc m_Desc;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PipelineState;
+};
+
+///////////////////////////////////////////////////////////////////////////////////
+/// D3D12GraphicsPipeline
+///////////////////////////////////////////////////////////////////////////////////
+class D3D12VertexInputLayout : public RHIVertexInputLayout
+{
+public:
+    // void SetVertexInputLayoutDesc(const RHIVertexInputLayoutDesc& inDesc) override;
+    const RHIVertexInputLayoutDesc& GetDesc() const override { return m_Desc; }
+    const D3D12_INPUT_ELEMENT_DESC* GetInputElements() const { return m_D3DInputElements.data(); }
+    uint32_t GetElementsCount() const { return static_cast<uint32_t>(m_D3DInputElements.size()); }
+    
+private:
+    D3D12VertexInputLayout(const RHIVertexInputLayoutDesc& inDesc);
+    RHIVertexInputLayoutDesc m_Desc;
+    std::vector<D3D12_INPUT_ELEMENT_DESC> m_D3DInputElements;
+};
+
+class D3D12GraphicsPipeline : public RHIGraphicsPipeline
+{
+public:
+    ~D3D12GraphicsPipeline() override;
+    bool Init() override;
+    void Shutdown() override;
+    bool IsValid() const override;
+    const RHIGraphicsPipelineDesc& GetDesc() const override { return m_Desc; }
+    
+protected:
+    void SetNameInternal() override;
+    
+private:
+    friend D3D12Device;
+    D3D12GraphicsPipeline(D3D12Device& inDevice, const RHIGraphicsPipelineDesc& inDesc);
+    void ShutdownInternal();
+    
+    D3D12Device& m_Device;
+    RHIGraphicsPipelineDesc m_Desc;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PipelineState;
+};
+
+///////////////////////////////////////////////////////////////////////////////////
+/// D3D12MeshPipeline
+///////////////////////////////////////////////////////////////////////////////////
+class D3D12MeshPipeline : public RHIMeshPipeline
+{
+public:
+    ~D3D12MeshPipeline() override;
+    bool Init() override;
+    void Shutdown() override;
+    bool IsValid() const override;
+    const RHIMeshPipelineDesc& GetDesc() const override { return m_Desc; }
+
+protected:
+    void SetNameInternal() override;
+
+private:
+    friend D3D12Device;
+    D3D12MeshPipeline(D3D12Device& inDevice, const RHIMeshPipelineDesc& inDesc);
+    void ShutdownInternal();
+    
+    D3D12Device& m_Device;
+    RHIMeshPipelineDesc m_Desc;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PipelineState;
+};
+
+///////////////////////////////////////////////////////////////////////////////////
+/// D3D12RayTracingPipeline
+///////////////////////////////////////////////////////////////////////////////////
+class D3D12ShaderTable : public RHIShaderTable
+{
+public:
+    const ShaderTableEntry& GetRayGenShaderEntry() const { return m_RayGenerationShaderRecord; }
+    const ShaderTableEntry& GetMissShaderEntry() const { return m_MissShaderRecord; }
+    const ShaderTableEntry& GetHitGroupEntry() const { return m_HitGroupRecord; }
+    const ShaderTableEntry& GetCallableShaderEntry() const { return m_CallableShaderRecord; }
+    
+private:
+    friend class D3D12RayTracingPipeline;
+    Microsoft::WRL::ComPtr<ID3D12Resource>              m_ShaderTableBuffer;
+    ShaderTableEntry                                    m_RayGenerationShaderRecord;
+    ShaderTableEntry                                    m_MissShaderRecord;
+    ShaderTableEntry                                    m_HitGroupRecord;
+    ShaderTableEntry                                    m_CallableShaderRecord;
+};
+
+class D3D12RayTracingPipeline : public RHIRayTracingPipeline
+{
+public:
+    ~D3D12RayTracingPipeline() override;
+    bool Init() override;
+    void Shutdown() override;
+    bool IsValid() const override;
+    const RHIRayTracingPipelineDesc& GetDesc() const override { return m_Desc; }
+    const RHIShaderTable& GetShaderTable() const override { return *m_ShaderTable; }
+
+protected:
+    void SetNameInternal() override;
+
+private:
+    friend D3D12Device;
+    D3D12RayTracingPipeline(D3D12Device& inDevice, const RHIRayTracingPipelineDesc& inDesc);
+    void ShutdownInternal();
+
+    D3D12Device& m_Device;
+    RHIRayTracingPipelineDesc m_Desc;
+    std::unique_ptr<D3D12ShaderTable> m_ShaderTable;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PipelineState;
+    Microsoft::WRL::ComPtr<ID3D12StateObjectProperties> m_PipelineProperties;
+    std::vector<std::wstring> m_ShaderGroupNames;
 };

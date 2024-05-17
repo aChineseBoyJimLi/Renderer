@@ -19,6 +19,8 @@ protected:
     virtual void Shutdown() {}
     
     virtual void OnResize(int width, int height){ }
+    virtual void OnBeginResize() {}
+    virtual void OnEndResize() {}
     virtual void OnMouseLeftBtnDown(int x, int y){ }
     virtual void OnMouseLeftBtnUp(int x, int y)  { }
     virtual void OnMouseRightBtnDown(int x, int y){ }

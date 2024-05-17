@@ -47,8 +47,10 @@ public:
 
     ERHIShaderType GetType() const override {return m_Type;}
     void SetEntryName(const char* inName) override { m_EntryName = inName; }
-    const char* GetEntryName() const override { return m_EntryName; }
+    const std::string& GetEntryName() const override { return m_EntryName; }
     std::shared_ptr<Blob> GetByteCode() const override {return m_ShaderBlob;}
+    const uint8_t* GetData() const override { return m_ShaderBlob->GetData(); }
+    size_t GetSize() const override { return m_ShaderBlob->GetSize(); }
     void SetByteCode(std::shared_ptr<Blob> inByteCode) override { m_ShaderBlob = inByteCode;}
 
 private:
@@ -59,7 +61,7 @@ private:
         , m_ShaderBlob(nullptr) {}
 
     ERHIShaderType m_Type;
-    const char* m_EntryName;
+    std::string m_EntryName;
     std::shared_ptr<Blob> m_ShaderBlob;
 };
 
@@ -88,4 +90,127 @@ private:
     RHIComputePipelineDesc m_Desc;
     VkPipeline m_PipelineState;
     VkShaderModule m_ComputeShaderModule;
+};
+
+///////////////////////////////////////////////////////////////////////////////////
+/// VulkanGraphicsPipeline
+///////////////////////////////////////////////////////////////////////////////////
+class VulkanVertexInputLayout : public RHIVertexInputLayout
+{
+public:
+    const RHIVertexInputLayoutDesc& GetDesc() const override { return m_Desc; }
+    const VkVertexInputAttributeDescription* GetAttributes() const { return m_Attributes.data(); }
+    uint32_t GetAttributeCount() const { return static_cast<uint32_t>(m_Attributes.size()); }
+    
+private:
+    VulkanVertexInputLayout(const RHIVertexInputLayoutDesc& inDesc);
+    RHIVertexInputLayoutDesc m_Desc;
+    std::vector<VkVertexInputAttributeDescription> m_Attributes;
+};
+
+class VulkanGraphicsPipeline : public RHIGraphicsPipeline
+{
+public:
+    ~VulkanGraphicsPipeline() override;
+    bool Init() override;
+    void Shutdown() override;
+    bool IsValid() const override;
+    const RHIGraphicsPipelineDesc& GetDesc() const override { return m_Desc; }
+        
+protected:
+    void SetNameInternal() override;
+    
+private:
+    friend VulkanDevice;
+    VulkanGraphicsPipeline(VulkanDevice& inDevice, const RHIGraphicsPipelineDesc& inDesc);
+    void ShutdownInternal();
+    
+    VulkanDevice& m_Device;
+    RHIGraphicsPipelineDesc m_Desc;
+    std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
+    VkShaderModule  m_VertexShaderModule;
+    VkShaderModule  m_FragmentShaderModule;
+    VkShaderModule  m_GeometryShaderModule;
+    VkShaderModule  m_TessControlShaderModule;
+    VkShaderModule  m_TessEvalShaderModule;
+    VkPipeline      m_PipelineState;
+};
+
+///////////////////////////////////////////////////////////////////////////////////
+/// VulkanMeshPipeline
+///////////////////////////////////////////////////////////////////////////////////
+class VulkanMeshPipeline : public RHIMeshPipeline
+{
+public:
+    ~VulkanMeshPipeline() override;
+    bool Init() override;
+    void Shutdown() override;
+    bool IsValid() const override;
+    const RHIMeshPipelineDesc& GetDesc() const override { return m_Desc; }
+    
+protected:
+    void SetNameInternal() override;
+    
+private:
+    friend VulkanDevice;
+    VulkanMeshPipeline(VulkanDevice& inDevice, const RHIMeshPipelineDesc& inDesc);
+    void ShutdownInternal();
+
+    std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
+    VulkanDevice& m_Device;
+    RHIMeshPipelineDesc m_Desc;
+    VkShaderModule m_TaskShaderModule;
+    VkShaderModule m_MeshShaderModule;
+    VkShaderModule m_FragmentShaderModule;
+    VkPipeline m_PipelineState;
+};
+
+///////////////////////////////////////////////////////////////////////////////////
+/// VulkanRayTracingPipeline
+///////////////////////////////////////////////////////////////////////////////////
+class VulkanShaderTable : public RHIShaderTable
+{
+public:
+    ~VulkanShaderTable() override;
+    const ShaderTableEntry& GetRayGenShaderEntry() const { return m_RayGenerationShaderRecord; }
+    const ShaderTableEntry& GetMissShaderEntry() const { return m_MissShaderRecord; }
+    const ShaderTableEntry& GetHitGroupEntry() const { return m_HitGroupRecord; }
+    const ShaderTableEntry& GetCallableShaderEntry() const { return m_CallableShaderRecord; }
+    
+private:
+    friend class D3D12RayTracingPipeline;
+    VkBuffer                                            m_ShaderTableBuffer;
+    VkDeviceMemory                                      m_ShaderTableBufferMemory;
+    
+    ShaderTableEntry                                    m_RayGenerationShaderRecord;
+    ShaderTableEntry                                    m_MissShaderRecord;
+    ShaderTableEntry                                    m_HitGroupRecord;
+    ShaderTableEntry                                    m_CallableShaderRecord;
+};
+
+class VulkanRayTracingPipeline : public RHIRayTracingPipeline
+{
+public:
+    ~VulkanRayTracingPipeline() override;
+    bool Init() override;
+    void Shutdown() override;
+    bool IsValid() const override;
+    const RHIRayTracingPipelineDesc& GetDesc() const override { return m_Desc; }
+    
+protected:
+    void SetNameInternal() override;
+
+private:
+    friend VulkanDevice;
+    VulkanRayTracingPipeline(VulkanDevice& inDevice, const RHIRayTracingPipelineDesc& inDesc);
+    void ShutdownInternal();
+
+    VulkanDevice& m_Device;
+    RHIRayTracingPipelineDesc m_Desc;
+    std::vector<VkShaderModule> m_ShaderModules;
+    std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_ShaderGroups;
+    std::unique_ptr<VulkanShaderTable> m_ShaderTable;
+    VkPipeline m_PipelineState;
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_PipelineProperties;
 };

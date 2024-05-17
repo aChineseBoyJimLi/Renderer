@@ -81,10 +81,12 @@ void Win32Base::Run()
             TranslateMessage(&Msg);
             DispatchMessageW(&Msg);
         }
-        m_Timer.Tick();
-        Tick();
+        if(m_IsRunning)
+        {
+            m_Timer.Tick();
+            Tick();
+        }
     }
-    
     Shutdown();
 }
 
@@ -103,9 +105,19 @@ LRESULT CALLBACK Win32Base::MsgProc(HWND HWnd, UINT Msg, WPARAM WParam, LPARAM L
         break;
     
     case WM_ENTERSIZEMOVE:
+        for (auto i : s_Listeners)
+        {
+            i->m_IsRunning = false;
+            i->OnBeginResize();
+        }
         break;
 
     case WM_EXITSIZEMOVE:
+        for (auto i : s_Listeners)
+        {
+            i->m_IsRunning = true;
+            i->OnEndResize();
+        }
         break;
 
     case WM_SIZE:

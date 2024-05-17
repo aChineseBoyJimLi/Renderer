@@ -1,6 +1,8 @@
 ﻿#include "D3D12CommandList.h"
 #include "D3D12Device.h"
+#include "D3D12Resources.h"
 #include "../../Core/Log.h"
+#include "../../Core/Templates.h"
 
 std::shared_ptr<RHICommandList> D3D12Device::CreateCommandList(ERHICommandQueueType inType)
 {
@@ -79,8 +81,98 @@ void D3D12CommandList::End()
 {
     if(IsValid() && !m_IsClosed)
     {
+        FlushBarriers();
         m_CmdListHandle->Close();
         m_IsClosed = true;
+    }
+}
+
+void D3D12CommandList::BeginRenderPass(const std::shared_ptr<RHIFrameBuffer>& inFrameBuffer)
+{
+    if(IsValid())
+    {
+        uint32_t numRenderTargets = inFrameBuffer->GetNumRenderTargets();
+        std::vector<RHIClearValue> clearColors(numRenderTargets);
+        for(uint32_t i = 0; i < numRenderTargets; i++)
+        {
+            clearColors[i] = inFrameBuffer->GetRenderTarget(i)->GetClearValue();
+        }
+        BeginRenderPass(inFrameBuffer, clearColors.data(), numRenderTargets);
+    }
+}
+
+void D3D12CommandList::BeginRenderPass(const std::shared_ptr<RHIFrameBuffer>& inFrameBuffer
+    , const RHIClearValue* inColor , uint32_t inNumRenderTargets)
+{
+    if(IsValid())
+    {
+        float depth = 1;
+        uint8_t stencil = 0;
+        if(inFrameBuffer->HasDepthStencil())
+        {
+            const RHIClearValue& clearValue = inFrameBuffer->GetDepthStencil()->GetClearValue();
+            depth = clearValue.DepthStencil.Depth;
+            stencil = clearValue.DepthStencil.Stencil;
+        }
+        BeginRenderPass(inFrameBuffer, inColor, inNumRenderTargets, depth, stencil);
+    }
+}
+
+void D3D12CommandList::BeginRenderPass(const std::shared_ptr<RHIFrameBuffer>& inFrameBuffer
+        , const RHIClearValue* inColor , uint32_t inNumRenderTargets
+        , float inDepth, uint8_t inStencil)
+{
+    if (IsValid())
+    {
+        FlushBarriers();
+        const D3D12FrameBuffer* frameBuffer = CheckCast<D3D12FrameBuffer*>(inFrameBuffer.get());
+        if(frameBuffer && frameBuffer->IsValid() && inNumRenderTargets == frameBuffer->GetNumRenderTargets())
+        {
+            m_CmdListHandle->OMSetRenderTargets(frameBuffer->GetNumRenderTargets()
+                , frameBuffer->GetRenderTargetViews()
+                , false
+                , frameBuffer->GetDepthStencilViews());
+            for(uint32_t i = 0; i < inNumRenderTargets; ++i)
+            {
+                m_CmdListHandle->ClearRenderTargetView(frameBuffer->GetRenderTargetView(i), inColor[i].Color, 0, nullptr);
+            }
+            if(frameBuffer->HasDepthStencil())
+            {
+                D3D12_CLEAR_FLAGS flags = D3D12_CLEAR_FLAG_DEPTH;
+                const RHIFormatInfo& formatInfo = RHI::GetFormatInfo(frameBuffer->GetDepthStencilFormat());
+                if(formatInfo.HasStencil) flags |= D3D12_CLEAR_FLAG_STENCIL;
+                m_CmdListHandle->ClearDepthStencilView(frameBuffer->GetDepthStencilView(), flags, inDepth, inStencil, 0, nullptr);
+            }
+        }
+    }
+}
+
+void D3D12CommandList::EndRenderPass()
+{
+    FlushBarriers();
+}
+
+void D3D12CommandList::ResourceBarrier(std::shared_ptr<RHITexture>& inResource , ERHIResourceStates inAfterState)
+{
+    if(IsValid())
+    {
+        D3D12Texture* texture = CheckCast<D3D12Texture*>(inResource.get());
+        if(texture && texture->IsValid())
+        {
+            D3D12_RESOURCE_STATES beforeState = texture->GetCurrentState();
+            D3D12_RESOURCE_STATES afterState = RHI::D3D12::ConvertResourceStates(inAfterState);
+            m_CachedBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(texture->GetTexture(), beforeState, afterState));
+            texture->ChangeState(afterState);
+        }
+    }
+}
+
+void D3D12CommandList::FlushBarriers()
+{
+    if(IsValid() && !m_CachedBarriers.empty())
+    {
+        m_CmdListHandle->ResourceBarrier((uint32_t)m_CachedBarriers.size(), m_CachedBarriers.data());
+        m_CachedBarriers.clear();
     }
 }
 

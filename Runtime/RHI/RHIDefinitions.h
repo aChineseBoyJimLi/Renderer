@@ -1,21 +1,28 @@
 #pragma once
 #include "RHIConstants.h"
 #include <string>
+#include <vector>
+#include <array>
+#include <memory>
+#include <unordered_map>
 
 #define COMMAND_QUEUES_COUNT static_cast<uint32_t>(ERHICommandQueueType::Count)
 
 typedef uint64_t RHIResourceGpuAddress;
 typedef float RHIAffineTransform[12];
 
+struct RHIFormatInfo;
 struct RHISwapChainDesc;
 class RHISwapChain;
 class RHIDevice;
 
 namespace RHI
 {
-    bool        Init(bool useVulkan = false);
-    void        Shutdown();
-    RHIDevice*  GetDevice();
+    bool                    Init(bool useVulkan = false);
+    void                    Shutdown();
+    RHIDevice*              GetDevice();
+    const RHIFormatInfo&    GetFormatInfo(ERHIFormat inFormat);
+    std::shared_ptr<RHISwapChain> CreateSwapChain(const RHISwapChainDesc& inDesc);
 }
 
 class RHIObject
@@ -83,4 +90,64 @@ struct RHIAABB
     float MaxX;
     float MaxY;
     float MaxZ;
+};
+
+struct RHIFormatInfo
+{
+    ERHIFormat Format;
+    const char* Name;
+    uint8_t BytesPerBlock;
+    uint8_t BlockSize;
+    ERHIFormatKind Kind;
+    bool HasRed : 1;
+    bool HasGreen : 1;
+    bool HasBlue : 1;
+    bool HasAlpha : 1;
+    bool HasDepth : 1;
+    bool HasStencil : 1;
+    bool IsSigned : 1;
+    bool IsSRGB : 1;
+};
+
+struct RHIClearValue
+{
+    struct DSValue
+    {
+        float Depth;
+        uint8_t Stencil;
+    };
+
+    union
+    {
+        float Color[4];
+        DSValue DepthStencil;
+    };
+
+    RHIClearValue()
+        : Color { 0.0f, 0.0f, 0.0f, 0.0f }
+    {
+        
+    }
+
+    explicit RHIClearValue(float R, float G, float B, float A = 1.f)
+    {
+        Color[0] = R;
+        Color[1] = G;
+        Color[2] = B;
+        Color[3] = A;
+    }
+
+    explicit RHIClearValue(float depth, uint32_t stencil = 0)
+    {
+        DepthStencil.Depth = depth;
+        DepthStencil.Stencil = stencil;
+    }
+
+    static const RHIClearValue Black;
+    static const RHIClearValue White;
+    static const RHIClearValue Red;
+    static const RHIClearValue Green;
+    static const RHIClearValue Transparent;
+    static const RHIClearValue DepthOne;
+    static const RHIClearValue DepthZero;
 };

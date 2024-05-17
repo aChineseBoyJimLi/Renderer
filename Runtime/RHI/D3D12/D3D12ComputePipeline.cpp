@@ -1,6 +1,7 @@
 #include "D3D12PipelineState.h"
 #include "D3D12Device.h"
 #include "../../Core/Log.h"
+#include "../../Core/Templates.h"
 
 std::shared_ptr<RHIShader> D3D12Device::CreateShader(ERHIShaderType inType)
 {
@@ -10,6 +11,13 @@ std::shared_ptr<RHIShader> D3D12Device::CreateShader(ERHIShaderType inType)
         Log::Error("[D3D12] Failed to create shader");
     }
     return shader;
+}
+
+void D3D12Shader::SetByteCode(std::shared_ptr<Blob> inByteCode)
+{
+    m_ShaderBlob = inByteCode;
+    m_ShaderByteCodeD3D.pShaderBytecode = m_ShaderBlob->GetData();
+    m_ShaderByteCodeD3D.BytecodeLength = m_ShaderBlob->GetSize();
 }
 
 std::shared_ptr<RHIComputePipeline> D3D12Device::CreateComputePipeline(const RHIComputePipelineDesc& inDesc)
@@ -47,7 +55,7 @@ bool D3D12ComputePipeline::Init()
         return false;
     }
 
-    D3D12PipelineBindingLayout* bindingLayout = dynamic_cast<D3D12PipelineBindingLayout*>(m_Desc.BindingLayout.get());
+    D3D12PipelineBindingLayout* bindingLayout = CheckCast<D3D12PipelineBindingLayout*>(m_Desc.BindingLayout.get());
     if(bindingLayout == nullptr || !bindingLayout->IsValid())
     {
         Log::Error("[D3D12] The compute pipeline binding layout is invalid");
@@ -56,8 +64,8 @@ bool D3D12ComputePipeline::Init()
     
     D3D12_COMPUTE_PIPELINE_STATE_DESC pipelineDesc{};
     pipelineDesc.pRootSignature = bindingLayout->GetRootSignature();
-    pipelineDesc.CS.pShaderBytecode = m_Desc.ComputeShader->GetByteCode()->GetData();
-    pipelineDesc.CS.BytecodeLength = m_Desc.ComputeShader->GetByteCode()->GetSize();
+    pipelineDesc.CS.pShaderBytecode = m_Desc.ComputeShader->GetData();
+    pipelineDesc.CS.BytecodeLength = m_Desc.ComputeShader->GetSize();
     pipelineDesc.NodeMask = D3D12Device::GetNodeMask();
 
     HRESULT hr = m_Device.GetDevice()->CreateComputePipelineState(&pipelineDesc, IID_PPV_ARGS(&m_PipelineState));

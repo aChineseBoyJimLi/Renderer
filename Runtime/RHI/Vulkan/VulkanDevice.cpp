@@ -1,6 +1,9 @@
 #include "VulkanDevice.h"
-#include <vector>
+
+#include "VulkanCommandList.h"
+#include "../RHICommandList.h"
 #include "../../Core/Log.h"
+#include "../../Core/Templates.h"
 
 static const std::vector<const char*> s_ValidationLayerNames = {
     "VK_LAYER_KHRONOS_validation",
@@ -14,6 +17,16 @@ static const std::vector<const char*> s_InstanceExtensions = {
     VK_EXT_DEBUG_UTILS_EXTENSION_NAME
 #endif
 };
+
+static std::vector<const char*> s_DeviceExtensions;
+
+static VkPhysicalDeviceDescriptorIndexingFeaturesEXT    s_PhysicalDeviceDescriptorIndexingFeatures{};
+static VkPhysicalDeviceMeshShaderFeaturesEXT            s_MeshShaderFeature{};
+static VkPhysicalDeviceBufferDeviceAddressFeatures      s_BufferDeviceAddressFeature{};
+static VkPhysicalDeviceRayQueryFeaturesKHR              s_RayQueryFeatures{};
+static VkPhysicalDeviceRayTracingPipelineFeaturesKHR    s_RayTracingPipelineFeatures{};
+static VkPhysicalDeviceAccelerationStructureFeaturesKHR s_AccelerationStructureFeatures{};
+static VkPhysicalDeviceFragmentShadingRateFeaturesKHR   s_FragmentShadingRateFeatures{};
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity
     , VkDebugUtilsMessageTypeFlagsEXT messageType
@@ -92,8 +105,8 @@ bool VulkanDevice::Init()
     insCreateInfo.ppEnabledLayerNames = s_ValidationLayerNames.data();
     insCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
 #else
-    instanceCreateInfo.enabledLayerCount = 0;
-    instanceCreateInfo.pNext = nullptr;
+    insCreateInfo.enabledLayerCount = 0;
+    insCreateInfo.pNext = nullptr;
 #endif
 
     VkResult result = vkCreateInstance(&insCreateInfo, nullptr, &m_InstanceHandle);
@@ -162,106 +175,7 @@ bool VulkanDevice::Init()
 
     vkGetPhysicalDeviceFeatures(m_PhysicalDeviceHandle, &m_PhysicalDeviceFeatures);
     vkGetPhysicalDeviceMemoryProperties(m_PhysicalDeviceHandle, &m_PhysicalDeviceMemoryProperties);
-
-    // Enumerate all extensions
-    uint32_t extensionCount = 0;
-    vkEnumerateDeviceExtensionProperties(m_PhysicalDeviceHandle, nullptr, &extensionCount, nullptr);
-    std::vector<VkExtensionProperties> extensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(m_PhysicalDeviceHandle, nullptr, &extensionCount, extensions.data());
-
-    std::vector<const char*> deviceExtensions;
-    deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    bool supportRayTracingPipeline = false, supportAccelerationStructure = false, supportMeshShader = false;
-    bool supportDeferredHostOperations = false, supportRayQuery = false;
-    for(const auto& extension : extensions)
-    {
-        if(strcmp(extension.extensionName, VK_KHR_SPIRV_1_4_EXTENSION_NAME) == 0)
-        {
-            Log::Info("[Vulkan] GPU supports SPIR-V 1.4");
-            m_SupportSpirv14 = true;
-            deviceExtensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
-        }
     
-        if(strcmp(extension.extensionName, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME) == 0)
-        {
-            Log::Info("[Vulkan] GPU supports descriptor indexing");
-            m_SupportDescriptorIndexing = true;
-            deviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
-        }
-    
-        if(strcmp(extension.extensionName, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME) == 0)
-        {
-            Log::Info("[Vulkan] GPU supports shader float controls");
-            m_SupportShaderFloatControls = true;
-            deviceExtensions.push_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
-        }
-        
-        if(strcmp(extension.extensionName, VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME) == 0)
-        {
-            Log::Info("[Vulkan] GPU supports pipeline library");
-            m_SupportPipelineLibrary = true;
-            deviceExtensions.push_back(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
-        }
-
-        if(strcmp(extension.extensionName, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME) == 0)
-        {
-            Log::Info("[Vulkan] GPU supports buffer device address");
-            m_SupportBufferDeviceAddress = true;
-            deviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
-        }
-
-        if(strcmp(extension.extensionName, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0)
-        {
-            supportRayTracingPipeline = true;
-        }
-
-        if(strcmp(extension.extensionName, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) == 0)
-        {
-            supportAccelerationStructure = true;
-        }
-
-        if(strcmp(extension.extensionName, VK_EXT_MESH_SHADER_EXTENSION_NAME) == 0)
-        {
-            supportMeshShader = true;
-        }
-
-        if(strcmp(extension.extensionName, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME) == 0)
-        {
-            supportDeferredHostOperations = true;
-        }
-
-        if(strcmp(extension.extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME) == 0)
-        {
-            supportRayQuery = true;
-        }
-    }
-    
-    if(m_SupportSpirv14 && m_SupportShaderFloatControls)
-    {
-        if(supportMeshShader)
-        {
-            m_SupportMeshShading = true;
-            Log::Info("[Vulkan] GPU supports mesh shading");
-            deviceExtensions.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
-        }
-
-        if(supportRayTracingPipeline
-            && supportAccelerationStructure
-            && supportDeferredHostOperations
-            && supportRayQuery
-            && m_SupportBufferDeviceAddress
-            && m_SupportDescriptorIndexing
-            && m_SupportPipelineLibrary)
-        {
-            m_SupportRayTracing = true;
-            Log::Info("[Vulkan] GPU supports ray tracing");
-            deviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
-            deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
-            deviceExtensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
-            deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
-        }
-    }
-
     // Enumerate all queue families
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDeviceHandle, &queueFamilyCount, nullptr);
@@ -304,61 +218,7 @@ bool VulkanDevice::Init()
     deviceFeatures2.features = m_PhysicalDeviceFeatures;
     deviceFeatures2.pNext = nullptr;
 
-    VkPhysicalDeviceDescriptorIndexingFeaturesEXT physicalDeviceDescriptorIndexingFeatures{};
-    if(m_SupportDescriptorIndexing)
-    {
-        // Enable descriptor indexing feature
-        physicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
-        physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-        physicalDeviceDescriptorIndexingFeatures.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
-        physicalDeviceDescriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
-        physicalDeviceDescriptorIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing = VK_TRUE;
-        physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
-        physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
-        physicalDeviceDescriptorIndexingFeatures.pNext = deviceFeatures2.pNext; // Chain the feature to the top of existing features
-        deviceFeatures2.pNext = &physicalDeviceDescriptorIndexingFeatures;
-    }
-
-    // Enable features required for mesh shader
-    VkPhysicalDeviceMeshShaderFeaturesEXT enableMeshShaderFeature{};
-    if(m_SupportMeshShading)
-    {
-        enableMeshShaderFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
-        enableMeshShaderFeature.taskShader = VK_TRUE;
-        enableMeshShaderFeature.meshShader = VK_TRUE;
-        enableMeshShaderFeature.pNext = deviceFeatures2.pNext; // Chain the feature to the top of existing features
-        deviceFeatures2.pNext = &enableMeshShaderFeature;
-    }
-
-    // Enable features required for buffer device address
-    VkPhysicalDeviceBufferDeviceAddressFeatures enableBufferDeviceAddressFeature{};
-    if(m_SupportBufferDeviceAddress)
-    {
-        enableBufferDeviceAddressFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-        enableBufferDeviceAddressFeature.bufferDeviceAddress = VK_TRUE;
-        enableBufferDeviceAddressFeature.pNext = deviceFeatures2.pNext; // Chain the feature to the top of existing features
-        deviceFeatures2.pNext = &enableBufferDeviceAddressFeature;
-    }
-
-    // Enable features required for ray tracing
-    VkPhysicalDeviceRayQueryFeaturesKHR enabledRayQueryFeatures{};
-    VkPhysicalDeviceRayTracingPipelineFeaturesKHR enabledRayTracingPipelineFeatures{};
-    VkPhysicalDeviceAccelerationStructureFeaturesKHR enabledAccelerationStructureFeatures{};
-    if(m_SupportRayTracing)
-    {
-        enabledRayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-        enabledRayQueryFeatures.rayQuery = VK_TRUE;
-        enabledRayQueryFeatures.pNext = deviceFeatures2.pNext; // Chain the feature to the top of existing features
-        
-        enabledRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
-        enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
-        enabledRayTracingPipelineFeatures.pNext = &enabledRayQueryFeatures;
-        
-        enabledAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-        enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
-        enabledAccelerationStructureFeatures.pNext = &enabledRayTracingPipelineFeatures;
-        deviceFeatures2.pNext = &enabledAccelerationStructureFeatures;
-    }
+    EnableDeviceExtensions(deviceFeatures2);
     
     VkDeviceCreateInfo deviceCreateInfo = {};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -366,8 +226,8 @@ bool VulkanDevice::Init()
     deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     deviceCreateInfo.pEnabledFeatures = nullptr;
     deviceCreateInfo.pNext = &deviceFeatures2;
-    deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+    deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(s_DeviceExtensions.size());
+    deviceCreateInfo.ppEnabledExtensionNames = s_DeviceExtensions.data();
     deviceCreateInfo.enabledLayerCount = 0;
 
 #if _DEBUG || DEBUG
@@ -412,11 +272,183 @@ bool VulkanDevice::Init()
         vkGetRayTracingShaderGroupHandlesKHR = reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(vkGetDeviceProcAddr(m_DeviceHandle, "vkGetRayTracingShaderGroupHandlesKHR"));
         vkCreateRayTracingPipelinesKHR = reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(vkGetDeviceProcAddr(m_DeviceHandle, "vkCreateRayTracingPipelinesKHR"));
     }
+
+    if(m_SupportVariableRateShading)
+    {
+        m_PhysicalDeviceShadingRateProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_PROPERTIES_KHR;
+        VkPhysicalDeviceProperties2 deviceProperties2{};
+        deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        deviceProperties2.pNext = &m_PhysicalDeviceShadingRateProperties;
+        vkGetPhysicalDeviceProperties2(m_PhysicalDeviceHandle, &deviceProperties2);
+    }
 #if _DEBUG || DEBUG
     vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(m_DeviceHandle, "vkSetDebugUtilsObjectNameEXT"));
 #endif
     
     return true;
+}
+
+void VulkanDevice::EnableDeviceExtensions(VkPhysicalDeviceFeatures2& deviceFeatures2)
+{
+    // Enumerate all extensions
+    uint32_t extensionCount = 0;
+    vkEnumerateDeviceExtensionProperties(m_PhysicalDeviceHandle, nullptr, &extensionCount, nullptr);
+    std::vector<VkExtensionProperties> extensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(m_PhysicalDeviceHandle, nullptr, &extensionCount, extensions.data());
+    
+    s_DeviceExtensions.clear();
+    s_DeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    bool supportRayTracingPipeline = false, supportAccelerationStructure = false, supportMeshShader = false;
+    bool supportDeferredHostOperations = false, supportRayQuery = false;
+    for(const auto& extension : extensions)
+    {
+        if(strcmp(extension.extensionName, VK_KHR_SPIRV_1_4_EXTENSION_NAME) == 0)
+        {
+            Log::Info("[Vulkan] GPU supports SPIR-V 1.4");
+            m_SupportSpirv14 = true;
+            s_DeviceExtensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+        }
+    
+        if(strcmp(extension.extensionName, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME) == 0)
+        {
+            Log::Info("[Vulkan] GPU supports descriptor indexing");
+            m_SupportDescriptorIndexing = true;
+            s_DeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+        }
+    
+        if(strcmp(extension.extensionName, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME) == 0)
+        {
+            Log::Info("[Vulkan] GPU supports shader float controls");
+            m_SupportShaderFloatControls = true;
+            s_DeviceExtensions.push_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+        }
+        
+        if(strcmp(extension.extensionName, VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME) == 0)
+        {
+            Log::Info("[Vulkan] GPU supports pipeline library");
+            m_SupportPipelineLibrary = true;
+            s_DeviceExtensions.push_back(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
+        }
+
+        if(strcmp(extension.extensionName, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME) == 0)
+        {
+            Log::Info("[Vulkan] GPU supports buffer device address");
+            m_SupportBufferDeviceAddress = true;
+            s_DeviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+        }
+
+        if(strcmp(extension.extensionName, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0)
+        {
+            supportRayTracingPipeline = true;
+        }
+
+        if(strcmp(extension.extensionName, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) == 0)
+        {
+            supportAccelerationStructure = true;
+        }
+
+        if(strcmp(extension.extensionName, VK_EXT_MESH_SHADER_EXTENSION_NAME) == 0)
+        {
+            supportMeshShader = true;
+        }
+
+        if(strcmp(extension.extensionName, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME) == 0)
+        {
+            supportDeferredHostOperations = true;
+        }
+
+        if(strcmp(extension.extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME) == 0)
+        {
+            supportRayQuery = true;
+        }
+    }
+    
+    if(m_SupportSpirv14 && m_SupportShaderFloatControls)
+    {
+        if(supportMeshShader)
+        {
+            m_SupportMeshShading = true;
+            Log::Info("[Vulkan] GPU supports mesh shading");
+            s_DeviceExtensions.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
+        }
+
+        if(supportRayTracingPipeline
+            && supportAccelerationStructure
+            && supportDeferredHostOperations
+            && supportRayQuery
+            && m_SupportBufferDeviceAddress
+            && m_SupportDescriptorIndexing
+            && m_SupportPipelineLibrary)
+        {
+            m_SupportRayTracing = true;
+            Log::Info("[Vulkan] GPU supports ray tracing");
+            s_DeviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+            s_DeviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+            s_DeviceExtensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
+            s_DeviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+        }
+    }
+
+    // Enable descriptor indexing feature
+    if(m_SupportDescriptorIndexing)
+    {
+        s_PhysicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+        s_PhysicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+        s_PhysicalDeviceDescriptorIndexingFeatures.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
+        s_PhysicalDeviceDescriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
+        s_PhysicalDeviceDescriptorIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing = VK_TRUE;
+        s_PhysicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
+        s_PhysicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
+        s_PhysicalDeviceDescriptorIndexingFeatures.pNext = deviceFeatures2.pNext; // Chain the feature to the top of existing features
+        deviceFeatures2.pNext = &s_PhysicalDeviceDescriptorIndexingFeatures;
+    }
+
+    // Enable features required for mesh shader
+    if(m_SupportMeshShading)
+    {
+        s_MeshShaderFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
+        s_MeshShaderFeature.taskShader = VK_TRUE;
+        s_MeshShaderFeature.meshShader = VK_TRUE;
+        s_MeshShaderFeature.pNext = deviceFeatures2.pNext; // Chain the feature to the top of existing features
+        deviceFeatures2.pNext = &s_MeshShaderFeature;
+    }
+
+    // Enable features required for buffer device address
+    if(m_SupportBufferDeviceAddress)
+    {
+        s_BufferDeviceAddressFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+        s_BufferDeviceAddressFeature.bufferDeviceAddress = VK_TRUE;
+        s_BufferDeviceAddressFeature.pNext = deviceFeatures2.pNext; // Chain the feature to the top of existing features
+        deviceFeatures2.pNext = &s_BufferDeviceAddressFeature;
+    }
+
+    // Enable features required for ray tracing
+    if(m_SupportRayTracing)
+    {
+        s_RayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+        s_RayQueryFeatures.rayQuery = VK_TRUE;
+        s_RayQueryFeatures.pNext = deviceFeatures2.pNext; // Chain the feature to the top of existing features
+        
+        s_RayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+        s_RayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+        s_RayTracingPipelineFeatures.pNext = &s_RayQueryFeatures;
+        
+        s_AccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+        s_AccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+        s_AccelerationStructureFeatures.pNext = &s_RayTracingPipelineFeatures;
+        deviceFeatures2.pNext = &s_AccelerationStructureFeatures;
+    }
+
+    // Enable features required for variable rate shading
+    if(m_SupportVariableRateShading)
+    {
+        s_FragmentShadingRateFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR;
+        s_FragmentShadingRateFeatures.attachmentFragmentShadingRate = VK_TRUE;
+        s_FragmentShadingRateFeatures.pipelineFragmentShadingRate = VK_FALSE;
+        s_FragmentShadingRateFeatures.primitiveFragmentShadingRate = VK_FALSE;
+        s_FragmentShadingRateFeatures.pNext = deviceFeatures2.pNext; // Chain the feature to the top of existing features
+        deviceFeatures2.pNext = &s_FragmentShadingRateFeatures;
+    }
 }
 
 void VulkanDevice::Shutdown()
@@ -454,6 +486,84 @@ bool VulkanDevice::IsValid() const
     }
     
     return valid;
+}
+
+void VulkanDevice::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCommandList, const std::shared_ptr<RHIFence>& inSignalFence,
+                            const std::vector<std::shared_ptr<RHISemaphore>>* inWaitForSemaphores, 
+                            const std::vector<std::shared_ptr<RHISemaphore>>* inSignalSemaphores)
+{
+    VulkanCommandList* commandList = CheckCast<VulkanCommandList*>(inCommandList.get());
+    
+    if(commandList && commandList->IsValid())
+    {
+        if(!commandList->IsClosed())
+        {
+            commandList->End();
+        }
+        
+        VkQueue queue = GetCommandQueue(inCommandList->GetQueueType());
+        VkCommandBuffer cmdBuffer = commandList->GetCommandBuffer();
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmdBuffer;
+
+        std::vector<VkSemaphore> waitSemaphores;
+        if(inWaitForSemaphores && !inWaitForSemaphores->empty())
+        {
+            for(const auto& waitSemaphore : *inWaitForSemaphores)
+            {
+                const VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(waitSemaphore.get());
+                if(vulkanSemaphore && vulkanSemaphore->IsValid())
+                {
+                    waitSemaphores.push_back(vulkanSemaphore->GetSemaphore());
+                }
+            }
+            submitInfo.waitSemaphoreCount = (uint32_t)inWaitForSemaphores->size();
+            submitInfo.pWaitSemaphores = waitSemaphores.data();
+        }
+        else
+        {
+            submitInfo.waitSemaphoreCount = 0;
+            submitInfo.pWaitSemaphores = nullptr;
+            submitInfo.pWaitDstStageMask = nullptr;
+        }
+
+        std::vector<VkSemaphore> signalSemaphores;
+        if(inSignalSemaphores && !inSignalSemaphores->empty())
+        {
+            for(const auto& signalSemaphore : *inSignalSemaphores)
+            {
+                const VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(signalSemaphore.get());
+                if(vulkanSemaphore && vulkanSemaphore->IsValid())
+                {
+                    signalSemaphores.push_back(vulkanSemaphore->GetSemaphore());
+                }
+            }
+            submitInfo.signalSemaphoreCount = (uint32_t)inSignalSemaphores->size();
+            submitInfo.pSignalSemaphores = signalSemaphores.data();
+        }
+        else
+        {
+            submitInfo.signalSemaphoreCount = 0;
+            submitInfo.pSignalSemaphores = nullptr;
+        }
+        if(inSignalFence != nullptr && inSignalFence->IsValid())
+        {
+            inSignalFence->Reset();
+            const VkFence fence = CheckCast<VulkanFence*>(inSignalFence.get())->GetFence();
+            vkQueueSubmit(queue, 1, &submitInfo, fence);
+        }
+        else
+        {
+            vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+        }
+    }
+    else
+    {
+        Log::Error("[Vulkan] The commandList is invalid.");
+    }
 }
 
 void VulkanDevice::SetDebugName(VkObjectType objectType, uint64_t objectHandle, const std::string& name) const
@@ -562,6 +672,16 @@ void VulkanFence::SetNameInternal()
 std::shared_ptr<RHISemaphore> VulkanDevice::CreateRhiSemaphore()
 {
     std::shared_ptr<RHISemaphore> semaphore(new VulkanSemaphore(*this));
+    if(!semaphore->Init())
+    {
+        Log::Error("[Vulkan] Failed to create semaphore");
+    }
+    return semaphore;
+}
+
+std::shared_ptr<VulkanSemaphore> VulkanDevice::CreateVulkanSemaphore()
+{
+    std::shared_ptr<VulkanSemaphore> semaphore(new VulkanSemaphore(*this));
     if(!semaphore->Init())
     {
         Log::Error("[Vulkan] Failed to create semaphore");

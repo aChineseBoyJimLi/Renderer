@@ -1,5 +1,6 @@
 #pragma once
 #include "D3D12Definitions.h"
+#include "../../Core/FreeListAllocator.h"
 
 class D3D12Device;
 
@@ -13,7 +14,6 @@ public:
     // Try to copy a number of descriptors to this heap
     void CopyDescriptors(uint32_t inNumDescriptors, uint32_t inDestSlot, const D3D12_CPU_DESCRIPTOR_HANDLE& srcDescriptorRangeStart);
     // Try to allocate a number of descriptors from the heap, returns true if successful
-    // TODO: Try to use Buddy Allocator to reduce fragmentation
     bool TryAllocate(uint32_t inNumDescriptors, uint32_t& outSlot);
     // Free a number of descriptors from the heap
     void Free(uint32_t inSlot, uint32_t inNumDescriptors);
@@ -37,16 +37,7 @@ private:
     CD3DX12_CPU_DESCRIPTOR_HANDLE m_CpuBase;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_GpuBase;
 
-    struct DescriptorAllocatorRange
-    {
-        uint32_t First;
-        uint32_t Last;
-
-        DescriptorAllocatorRange(uint32_t InFirst, uint32_t InLast)
-            : First(InFirst), Last(InLast) {}
-    };
-
-    std::list<DescriptorAllocatorRange> m_FreeList;
+    FreeListAllocator m_DescriptorAllocator;
 };
 
 
