@@ -14,8 +14,8 @@ public:
     const RHISwapChainDesc& GetDesc() const override { return m_Desc; }
     void Present() override;
     void Resize(uint32_t inWidth, uint32_t inHeight) override;
-    std::shared_ptr<RHITexture> GetBackBuffer(uint32_t index) override;
-    std::shared_ptr<RHITexture> GetCurrentBackBuffer() override;
+    RHITexture* GetBackBuffer(uint32_t index) override;
+    RHITexture* GetCurrentBackBuffer() override;
     uint32_t GetCurrentBackBufferIndex() override { return m_CurrentBackBufferIndex; }
     uint32_t GetBackBufferCount() override { return m_Desc.BufferCount; }
     VkSurfaceKHR GetSurface() const { return m_SurfaceHandle; }
@@ -23,7 +23,7 @@ public:
     
 private:
     // friend VulkanDevice;
-    friend std::shared_ptr<RHISwapChain> RHI::CreateSwapChain(const RHISwapChainDesc& inDesc);
+    friend RefCountPtr<RHISwapChain> RHI::CreateSwapChain(const RHISwapChainDesc& inDesc);
     VulkanSwapChain(VulkanDevice& inDevice, const RHISwapChainDesc& inDesc);
     void ShutdownInternal();
     bool CreateSwapChain();
@@ -37,7 +37,7 @@ private:
     VkPresentModeKHR m_SwapChainPresentMode;
     VkSurfaceKHR m_SurfaceHandle;
     VkSwapchainKHR m_SwapChainHandle;
-    std::vector<std::shared_ptr<VulkanTexture>> m_BackBuffers;
+    std::vector<RefCountPtr<VulkanTexture>> m_BackBuffers;
     uint32_t m_CurrentBackBufferIndex;
-    std::shared_ptr<VulkanSemaphore> m_ImageAvailableSemaphore;
+    RefCountPtr<VulkanSemaphore> m_ImageAvailableSemaphore;
 };

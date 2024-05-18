@@ -26,7 +26,7 @@ bool VulkanRayTracingPipeline::Init()
         return true;
     }
 
-    const VulkanPipelineBindingLayout* bindingLayout = CheckCast<VulkanPipelineBindingLayout*>(m_Desc.GlobalBindingLayout.get());
+    const VulkanPipelineBindingLayout* bindingLayout = CheckCast<VulkanPipelineBindingLayout*>(m_Desc.GlobalBindingLayout);
     if(bindingLayout == nullptr || !bindingLayout->IsValid())
     {
         Log::Error("[Vulkan] The ray tracing pipeline binding layout is invalid");

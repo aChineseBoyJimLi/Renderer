@@ -164,11 +164,11 @@ bool D3D12Device::IsValid() const
     return valid;
 }
 
-void D3D12Device::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCommandList, const std::shared_ptr<RHIFence>& inSignalFence,
-                            const std::vector<std::shared_ptr<RHISemaphore>>* inWaitForSemaphores, 
-                            const std::vector<std::shared_ptr<RHISemaphore>>* inSignalSemaphores)
+void D3D12Device::ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence,
+                            const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores, 
+                            const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores)
 {
-    D3D12CommandList* commandList = CheckCast<D3D12CommandList*>(inCommandList.get());
+    D3D12CommandList* commandList = CheckCast<D3D12CommandList*>(inCommandList.GetReference());
     if(commandList && commandList->IsValid())
     {
         if(!commandList->IsClosed())
@@ -183,7 +183,7 @@ void D3D12Device::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCo
         if(inSignalFence != nullptr && inSignalFence->IsValid())
         {
             inSignalFence->Reset();
-            ID3D12Fence* fence = CheckCast<D3D12Fence*>(inSignalFence.get())->GetFence();
+            ID3D12Fence* fence = CheckCast<D3D12Fence*>(inSignalFence.GetReference())->GetFence();
             queue->Signal(fence, FENCE_COMPLETED_VALUE);
         }
 
@@ -191,7 +191,7 @@ void D3D12Device::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCo
         {
             for(const auto& waitSemaphore : *inWaitForSemaphores)
             {
-                D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(waitSemaphore.get());
+                D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(waitSemaphore.GetReference());
                 if(d3dSemaphore && d3dSemaphore->IsValid())
                 {
                     queue->Wait(d3dSemaphore->GetSemaphore(), FENCE_COMPLETED_VALUE);
@@ -203,7 +203,7 @@ void D3D12Device::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCo
         {
             for(const auto& signalSemaphore : *inSignalSemaphores)
             {
-                D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(signalSemaphore.get());
+                D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(signalSemaphore.GetReference());
                 if(d3dSemaphore && d3dSemaphore->IsValid())
                 {
                     d3dSemaphore->Reset();
@@ -213,10 +213,29 @@ void D3D12Device::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCo
         }
     }
 }
-    
-std::shared_ptr<RHIFence> D3D12Device::CreateRhiFence()
+
+void D3D12Device::FlushDirectCommandQueue()
 {
-    std::shared_ptr<RHIFence> fence(new D3D12Fence(*this));
+    RefCountPtr<D3D12Fence> tmpFence = CreateD3D12Fence();
+    tmpFence->Reset();
+    ID3D12CommandQueue* queue = GetCommandQueue(ERHICommandQueueType::Direct);
+    queue->Signal(tmpFence->GetFence(), FENCE_COMPLETED_VALUE);
+    tmpFence->CpuWait();
+}
+
+RefCountPtr<D3D12Fence> D3D12Device::CreateD3D12Fence()
+{
+    RefCountPtr<D3D12Fence> fence(new D3D12Fence(*this));
+    if(!fence->Init())
+    {
+        Log::Error("[D3D12] Failed to create a fence");
+    }
+    return fence;
+}
+    
+RefCountPtr<RHIFence> D3D12Device::CreateRhiFence()
+{
+    RefCountPtr<RHIFence> fence(new D3D12Fence(*this));
     if(!fence->Init())
     {
         Log::Error("[D3D12] Failed to create a fence");
@@ -224,9 +243,9 @@ std::shared_ptr<RHIFence> D3D12Device::CreateRhiFence()
     return fence;
 }
 
-std::shared_ptr<RHISemaphore> D3D12Device::CreateRhiSemaphore()
+RefCountPtr<RHISemaphore> D3D12Device::CreateRhiSemaphore()
 {
-    std::shared_ptr<RHISemaphore> semaphore(new D3D12Semaphore(*this));
+    RefCountPtr<RHISemaphore> semaphore(new D3D12Semaphore(*this));
     if(!semaphore->Init())
     {
         Log::Error("[D3D12] Failed to create a semaphore");

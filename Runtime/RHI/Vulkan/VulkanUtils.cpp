@@ -256,12 +256,11 @@ namespace RHI::Vulkan
     }
 
     bool CreateShaderShage(VkDevice inDevice
-        , const std::shared_ptr<RHIShader>& inShader
+        , const RHIShader* inShader
         , VkShaderStageFlagBits inShaderType
         , VkShaderModule& outShaderModule
         , VkPipelineShaderStageCreateInfo& outShaderStage)
     {
-
         if(inShader == nullptr || !inShader->IsValid())
         {
             Log::Error("[Vulkan] The shader is invalid");
@@ -578,7 +577,7 @@ namespace RHI::Vulkan
     {
         VkPipelineColorBlendAttachmentState attachment[RHIRenderTargetsMaxCount];
 
-        for(uint32_t i = 0; i < inState.RenderTargetCount; ++i)
+        for(uint32_t i = 0; i < inState.NumRenderTarget; ++i)
         {
             attachment[i].blendEnable = true;
             attachment[i].srcColorBlendFactor = ConvertBlendValue(inState.Targets[i].ColorSrcBlend);
@@ -593,7 +592,7 @@ namespace RHI::Vulkan
         outState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         outState.logicOpEnable = VK_FALSE;
         outState.logicOp = VK_LOGIC_OP_COPY;
-        outState.attachmentCount = inState.RenderTargetCount;
+        outState.attachmentCount = inState.NumRenderTarget;
         outState.pAttachments = attachment;
         outState.blendConstants[0] = 1.0f;
         outState.blendConstants[1] = 1.0f;

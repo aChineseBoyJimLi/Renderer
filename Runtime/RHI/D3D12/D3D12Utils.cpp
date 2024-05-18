@@ -340,7 +340,7 @@ namespace RHI::D3D12
         outState.AlphaToCoverageEnable = inState.AlphaToCoverageEnable;
         outState.IndependentBlendEnable = true;
 
-        for (uint32_t i = 0; i < inState.RenderTargetCount; i++)
+        for (uint32_t i = 0; i < inState.NumRenderTarget; i++)
         {
             const RHIBlendStateDesc::RenderTarget& src = inState.Targets[i];
             D3D12_RENDER_TARGET_BLEND_DESC& dst = outState.RenderTarget[i];

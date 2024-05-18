@@ -3,9 +3,9 @@
 #include "../../Core/Log.h"
 #include <map>
 
-std::shared_ptr<RHIPipelineBindingLayout> VulkanDevice::CreatePipelineBindingLayout(const RHIPipelineBindingLayoutDesc& inBindingItems)
+RefCountPtr<RHIPipelineBindingLayout> VulkanDevice::CreatePipelineBindingLayout(const RHIPipelineBindingLayoutDesc& inBindingItems)
 {
-    std::shared_ptr<RHIPipelineBindingLayout> layout(new VulkanPipelineBindingLayout(*this, inBindingItems));
+    RefCountPtr<RHIPipelineBindingLayout> layout(new VulkanPipelineBindingLayout(*this, inBindingItems));
     if(!layout->Init())
     {
         Log::Error("[Vulkan] Failed to create pipeline binding layout");

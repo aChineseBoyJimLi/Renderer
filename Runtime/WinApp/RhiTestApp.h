@@ -2,6 +2,7 @@
 
 #include "../Core/Win32Base.h"
 #include "../RHI/RHI.h"
+#include "AssetsManager.h"
 
 class RhiTestApp : public Win32Base
 {
@@ -12,28 +13,44 @@ protected:
     bool Init() final;
     void Tick()  final;
     void Shutdown() final;
+    void OnBeginResize() override;
     void OnResize(int width, int height) final;
     void OnEndResize() final;
 
+    void LoadAssets();
     void CreateFrameBuffer();
+    void CreateResources(); 
     
 private:
-    std::shared_ptr<RHIFence> m_Fence;
-    std::shared_ptr<RHISemaphore> m_Semaphore;
-    std::shared_ptr<RHICommandList> m_CommandList;
-    std::shared_ptr<RHIPipelineBindingLayout> m_CullingPassBindlingLayout;
+    RHIFenceRef m_Fence;
+    RHISemaphoreRef m_Semaphore;
+    RHICommandListRef m_CommandList;
+    RHICommandListRef m_CopyCommandList;
+    
+    RHIPipelineBindingLayoutRef m_CullingPassBindingLayout;
     std::shared_ptr<Blob> m_CullingShaderByteCode;
-    std::shared_ptr<RHIShader> m_CullingShader;
-    std::shared_ptr<RHIComputePipeline> m_CullingPipeline;
-    std::shared_ptr<RHIResourceHeap> m_ResourceHeap;
-    std::shared_ptr<RHIResourceHeap> m_ResourceHeap2;
+    RHIShaderRef m_CullingShader;
+    RHIComputePipelineRef m_CullingPipeline;
+    
+    RHIPipelineBindingLayoutRef m_GraphicsPassBindingLayout;
+    std::shared_ptr<Blob> m_VertexShaderByteCode;
+    std::shared_ptr<Blob> m_PixelShaderByteCode;
+    RHIShaderRef m_VertexShader;
+    RHIShaderRef m_PixelShader;
+    RHIGraphicsPipelineRef m_GraphicsPipeline;
 
-    std::shared_ptr<RHIBuffer> m_VirtualBuffer;
-    std::shared_ptr<RHIBuffer> m_ConstantsBuffer;
+    RHISwapChainRef m_SwapChain;
+    RHITextureRef m_DepthStencilTexture;
+    std::vector<RHIFrameBufferRef> m_FrameBuffers;
 
-    std::shared_ptr<RHITexture> m_VirtualTexture;
-    std::shared_ptr<RHITexture> m_DepthStencilTexture;
+    RHIBufferRef m_VertexBuffer;
+    RHIBufferRef m_IndexBuffer;
+    std::shared_ptr<AssetsManager::Mesh> m_Mesh;
 
-    std::shared_ptr<RHISwapChain> m_SwapChain;
-    std::vector<std::shared_ptr<RHIFrameBuffer>> m_FrameBuffers; 
+    RHIBufferRef m_CameraDataBuffer;
+    RHIBufferRef m_LightDataBuffer;
+    RHIBufferRef m_InstanceBuffer;
+    RHIBufferRef m_MaterialBuffer;
+    std::vector<RHITextureRef> m_MainTextures;
+    RHISamplerRef m_Sampler;
 };

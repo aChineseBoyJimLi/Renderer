@@ -5,6 +5,8 @@
 #include "../RHIResources.h"
 #include "../../Core/FreeListAllocator.h"
 
+class D3D12PipelineBindingLayout;
+
 ///////////////////////////////////////////////////////////////////////////////////
 /// D3D12ResourceHeap
 ///////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +120,7 @@ public:
     void  ReadData(void* outData, uint64_t inSize, uint64_t inOffset = 0) override;
     bool IsVirtual() const override { return IsVirtualBuffer; }
     bool IsManaged() const override { return IsManagedBuffer; }
-    bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap) override;
+    bool BindMemory(RefCountPtr<RHIResourceHeap> inHeap) override;
     size_t GetOffsetInHeap() const override { return m_OffsetInHeap; }
     
     bool CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const RHIBufferSubRange& inSubResource = RHIBufferSubRange::All);
@@ -153,7 +155,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> m_BufferHandle;
     CD3DX12_RESOURCE_DESC m_BufferDescD3D;
     D3D12_RESOURCE_ALLOCATION_INFO m_AllocationInfo;
-    std::shared_ptr<RHIResourceHeap> m_ResourceHeap;
+    RefCountPtr<RHIResourceHeap> m_ResourceHeap;
     size_t m_OffsetInHeap;
     
     int32_t m_NumMapCalls;
@@ -176,8 +178,8 @@ public:
     bool IsValid() const override;
     bool IsVirtual() const override { return IsVirtualTexture; }
     bool IsManaged() const override { return IsManagedTexture; }
-    const RHIClearValue& GetClearValue() override { return m_Desc.ClearValue; }
-    bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap) override;
+    const RHIClearValue& GetClearValue() const override { return m_Desc.ClearValue; }
+    bool BindMemory(RefCountPtr<RHIResourceHeap> inHeap) override;
     size_t GetOffsetInHeap() const override { return m_OffsetInHeap; }
     const RHITextureDesc& GetDesc() const override { return m_Desc; }
     uint32_t GetMemTypeFilter()  const override { return UINT32_MAX; }
@@ -216,7 +218,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> m_TextureHandle;
     D3D12_RESOURCE_DESC m_TextureDescD3D;
     D3D12_RESOURCE_ALLOCATION_INFO m_AllocationInfo;
-    std::shared_ptr<RHIResourceHeap> m_ResourceHeap;
+    RefCountPtr<RHIResourceHeap> m_ResourceHeap;
     size_t m_OffsetInHeap;
     
     std::unordered_map<RHITextureSubResource, D3D12ResourceView<D3D12_RENDER_TARGET_VIEW_DESC>> m_RenderTargetViews;
@@ -250,7 +252,7 @@ private:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
-/// D3D12FrameBuffer
+/// D3D12AccelerationStructure
 ///////////////////////////////////////////////////////////////////////////////////
 class D3D12AccelerationStructure : public RHIAccelerationStructure
 {
@@ -266,42 +268,20 @@ private:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
-/// D3D12FrameBuffer
+/// D3D12ResourceSet
 ///////////////////////////////////////////////////////////////////////////////////
-class D3D12FrameBuffer : public RHIFrameBuffer
+class D3D12ResourceSet : public RHIResourceSet
 {
 public:
-    ~D3D12FrameBuffer() override;
-    bool Init() override;
-    void Shutdown() override;
-    bool IsValid() const override;
-    const RHIFrameBufferDesc& GetDesc() const override { return m_Desc; }
-    bool Resize(std::shared_ptr<RHITexture>* inRenderTargets, std::shared_ptr<RHITexture> inDepthStencil) override;
-    uint32_t GetFrameBufferWidth() const override { return m_FrameBufferWidth; }
-    uint32_t GetFrameBufferHeight() const override { return m_FrameBufferHeight; }
-    uint32_t GetNumRenderTargets() const override { return m_Desc.NumRenderTargets; }
-    std::shared_ptr<RHITexture> GetRenderTarget(uint32_t inIndex) const override { return inIndex < m_Desc.NumRenderTargets ? m_Desc.RenderTargets[inIndex] : nullptr; }
-    std::shared_ptr<RHITexture> GetDepthStencil() const override { return m_Desc.DepthStencil; }
-    bool HasDepthStencil() const override { return m_Desc.DepthStencil != nullptr; }
-    ERHIFormat GetRenderTargetFormat(uint32_t inIndex) const override;
-    ERHIFormat GetDepthStencilFormat() const override;
-    const D3D12_CPU_DESCRIPTOR_HANDLE* GetRenderTargetViews() const { return IsValid() ? m_RTVHandles : nullptr; }
-    const D3D12_CPU_DESCRIPTOR_HANDLE* GetDepthStencilViews() const { return HasDepthStencil() ? &m_DSVHandle : nullptr; }
-    D3D12_CPU_DESCRIPTOR_HANDLE GetRenderTargetView(uint32_t inIndex) const { return m_RTVHandles[inIndex]; }
-    D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const { return m_DSVHandle; }
+    ~D3D12ResourceSet() override;
+
+    void BindBuffer(ERHIBindingResourceType inType, uint32_t inBaseRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) override;
     
+    
+    // RefCountPtr<RHIPipelineBindingLayout> GetLayout() const override { return m_Layout.GetReference(); }
+
 private:
-    friend D3D12Device;
-    D3D12FrameBuffer(D3D12Device& inDevice, const RHIFrameBufferDesc& inDesc);
-    void ShutdownInternal();
-
+    D3D12ResourceSet(D3D12Device& inDevice, const RHIPipelineBindingLayout* inLayout);
     D3D12Device& m_Device;
-    RHIFrameBufferDesc m_Desc;
-    uint32_t m_FrameBufferWidth;
-    uint32_t m_FrameBufferHeight;
-    D3D12Texture* m_RenderTargets[RHIRenderTargetsMaxCount];
-    D3D12Texture* m_DepthStencil;
-
-    D3D12_CPU_DESCRIPTOR_HANDLE m_RTVHandles[RHIRenderTargetsMaxCount];
-    D3D12_CPU_DESCRIPTOR_HANDLE m_DSVHandle;
+    const RHIPipelineBindingLayout* m_Layout;
 };

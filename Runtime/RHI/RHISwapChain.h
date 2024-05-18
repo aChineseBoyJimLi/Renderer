@@ -28,8 +28,8 @@ public:
     virtual const RHISwapChainDesc& GetDesc() const = 0;
     virtual void Present() = 0;
     virtual void Resize(uint32_t inWidth, uint32_t inHeight) = 0;
-    virtual std::shared_ptr<RHITexture> GetBackBuffer(uint32_t index) = 0;
-    virtual std::shared_ptr<RHITexture> GetCurrentBackBuffer() = 0;
+    virtual RHITexture* GetBackBuffer(uint32_t index) = 0;
+    virtual RHITexture* GetCurrentBackBuffer() = 0;
     virtual uint32_t GetBackBufferCount() = 0;
     virtual uint32_t GetCurrentBackBufferIndex() = 0;
 };

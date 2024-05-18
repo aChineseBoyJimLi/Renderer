@@ -10,7 +10,8 @@
 
 #define OUTPUT_D3D12_FAILED_RESULT(Re)  if(FAILED(Re))\
     {\
-        std::string message = std::system_category().message(Re);\
+        std::string str = std::system_category().message(Re);\
+        std::wstring message(str.begin(), str.end());\
         Log::Error("[D3D12] Error: %s, In File: %s line %d", message.c_str(), __FILE__, __LINE__);\
     }
 

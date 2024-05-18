@@ -1,12 +1,13 @@
 ﻿#include "VulkanCommandList.h"
 #include "VulkanDevice.h"
 #include "VulkanResources.h"
+#include "VulkanPipelineState.h"
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-std::shared_ptr<RHICommandList> VulkanDevice::CreateCommandList(ERHICommandQueueType inType)
+RefCountPtr<RHICommandList> VulkanDevice::CreateCommandList(ERHICommandQueueType inType)
 {
-    std::shared_ptr<RHICommandList> commandList(new VulkanCommandList(*this, inType));
+    RefCountPtr<RHICommandList> commandList(new VulkanCommandList(*this, inType));
     if(!commandList->Init())
     {
         Log::Error("[Vulkan] Failed to create a command list");
@@ -94,91 +95,139 @@ void VulkanCommandList::End()
     }
 }
 
-void VulkanCommandList::BeginRenderPass(const std::shared_ptr<RHIFrameBuffer>& inFrameBuffer)
+void VulkanCommandList::SetPipelineState(const RefCountPtr<RHIGraphicsPipeline>& inPipelineState)
 {
-    if(IsValid())
-    {
-        uint32_t numRenderTargets = inFrameBuffer->GetNumRenderTargets();
-        std::vector<RHIClearValue> clearColors(numRenderTargets);
-        for(uint32_t i = 0; i < numRenderTargets; i++)
-        {
-            clearColors[i] = inFrameBuffer->GetRenderTarget(i)->GetClearValue();
-        }
-        BeginRenderPass(inFrameBuffer, clearColors.data(), numRenderTargets);
-    }
+
 }
 
-void VulkanCommandList::BeginRenderPass(const std::shared_ptr<RHIFrameBuffer>& inFrameBuffer
+void VulkanCommandList::SetFrameBuffer(const RefCountPtr<RHIFrameBuffer>& inFrameBuffer)
+{
+    
+}
+
+void VulkanCommandList::SetFrameBuffer(const RefCountPtr<RHIFrameBuffer>& inFrameBuffer
     , const RHIClearValue* inColor , uint32_t inNumRenderTargets)
 {
+    
+}
+
+void VulkanCommandList::SetFrameBuffer(const RefCountPtr<RHIFrameBuffer>& inFrameBuffer
+    , const RHIClearValue* inColor , uint32_t inNumRenderTargets
+    , float inDepth, uint8_t inStencil)
+{
+    
+}
+
+// void VulkanCommandList::BeginRenderPass(const RefCountPtr<RHIFrameBuffer>& inFrameBuffer)
+// {
+//     if(IsValid())
+//     {
+//         uint32_t numRenderTargets = inFrameBuffer->GetNumRenderTargets();
+//         std::vector<RHIClearValue> clearColors(numRenderTargets);
+//         for(uint32_t i = 0; i < numRenderTargets; i++)
+//         {
+//             clearColors[i] = inFrameBuffer->GetRenderTarget(i)->GetClearValue();
+//         }
+//         BeginRenderPass(inFrameBuffer, clearColors.data(), numRenderTargets);
+//     }
+// }
+//
+// void VulkanCommandList::BeginRenderPass(const RefCountPtr<RHIFrameBuffer>& inFrameBuffer
+//     , const RHIClearValue* inColor , uint32_t inNumRenderTargets)
+// {
+//     if(IsValid())
+//     {
+//         float depth = 1;
+//         uint8_t stencil = 0;
+//         if(inFrameBuffer->HasDepthStencil())
+//         {
+//             const RHIClearValue& clearValue = inFrameBuffer->GetDepthStencil()->GetClearValue();
+//             depth = clearValue.DepthStencil.Depth;
+//             stencil = clearValue.DepthStencil.Stencil;
+//         }
+//         BeginRenderPass(inFrameBuffer, inColor, inNumRenderTargets, depth, stencil);
+//     }
+// }
+//
+// void VulkanCommandList::BeginRenderPass(const RefCountPtr<RHIFrameBuffer>& inFrameBuffer
+//         , const RHIClearValue* inColor , uint32_t inNumRenderTargets
+//         , float inDepth, uint8_t inStencil)
+// {
+//     if (IsValid())
+//     {
+//         FlushBarriers();
+//         const VulkanFrameBuffer* frameBuffer = CheckCast<VulkanFrameBuffer*>(inFrameBuffer.GetReference());
+//         if(frameBuffer && frameBuffer->IsValid())
+//         {
+//             VkRenderPassBeginInfo renderPassBeginInfo{};
+//             renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+//             renderPassBeginInfo.renderPass = frameBuffer->GetRenderPass();
+//             renderPassBeginInfo.framebuffer = frameBuffer->GetFrameBuffer();
+//             renderPassBeginInfo.renderArea.extent.width = frameBuffer->GetFrameBufferWidth();
+//             renderPassBeginInfo.renderArea.extent.height = frameBuffer->GetFrameBufferHeight();
+//             renderPassBeginInfo.renderArea.offset.x = 0;
+//             renderPassBeginInfo.renderArea.offset.y = 0;
+//
+//             uint32_t numClearValues = inFrameBuffer->HasDepthStencil() ? inNumRenderTargets + 1 : inNumRenderTargets;
+//             std::vector<VkClearValue> clearValues(numClearValues);
+//             for(uint32_t i = 0; i < inNumRenderTargets; i++)
+//             {
+//                 clearValues[i].color.float32[0] = inColor[i].Color[0];
+//                 clearValues[i].color.float32[1] = inColor[i].Color[1];
+//                 clearValues[i].color.float32[2] = inColor[i].Color[2];
+//                 clearValues[i].color.float32[3] = inColor[i].Color[3];
+//             }
+//             if(inFrameBuffer->HasDepthStencil())
+//             {
+//                 clearValues[inNumRenderTargets].depthStencil.depth = inDepth;
+//                 clearValues[inNumRenderTargets].depthStencil.stencil = inStencil;
+//             }
+//             renderPassBeginInfo.clearValueCount = numClearValues;
+//             renderPassBeginInfo.pClearValues = clearValues.data();
+//             vkCmdBeginRenderPass(m_CmdBufferHandle, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+//         }
+//     }
+// }
+//
+// void VulkanCommandList::EndRenderPass()
+// {
+//     if (IsValid())
+//     {
+//         vkCmdEndRenderPass(m_CmdBufferHandle);
+//         FlushBarriers();
+//     }
+// }
+
+void VulkanCommandList::SetViewports(const std::vector<RHIViewport>& inViewports)
+{
+    
+}
+
+void VulkanCommandList::SetScissorRects(const std::vector<RHIRect>& inRects)
+{
+    
+}
+
+void VulkanCommandList::CopyBuffer(RefCountPtr<RHIBuffer>& dstBuffer, size_t dstOffset, RefCountPtr<RHIBuffer>& srcBuffer, size_t srcOffset, size_t size)
+{
+    
+}
+
+void VulkanCommandList::SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer)
+{
+    
+}
+
+void VulkanCommandList::SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer)
+{
+    
+}
+
+void VulkanCommandList::ResourceBarrier(RefCountPtr<RHITexture>& inResource , ERHIResourceStates inAfterState)
+{
     if(IsValid())
     {
-        float depth = 1;
-        uint8_t stencil = 0;
-        if(inFrameBuffer->HasDepthStencil())
-        {
-            const RHIClearValue& clearValue = inFrameBuffer->GetDepthStencil()->GetClearValue();
-            depth = clearValue.DepthStencil.Depth;
-            stencil = clearValue.DepthStencil.Stencil;
-        }
-        BeginRenderPass(inFrameBuffer, inColor, inNumRenderTargets, depth, stencil);
-    }
-}
-
-void VulkanCommandList::BeginRenderPass(const std::shared_ptr<RHIFrameBuffer>& inFrameBuffer
-        , const RHIClearValue* inColor , uint32_t inNumRenderTargets
-        , float inDepth, uint8_t inStencil)
-{
-    if (IsValid())
-    {
-        FlushBarriers();
-        const VulkanFrameBuffer* frameBuffer = CheckCast<VulkanFrameBuffer*>(inFrameBuffer.get());
-        if(frameBuffer && frameBuffer->IsValid())
-        {
-            VkRenderPassBeginInfo renderPassBeginInfo{};
-            renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderPassBeginInfo.renderPass = frameBuffer->GetRenderPass();
-            renderPassBeginInfo.framebuffer = frameBuffer->GetFrameBuffer();
-            renderPassBeginInfo.renderArea.extent.width = frameBuffer->GetFrameBufferWidth();
-            renderPassBeginInfo.renderArea.extent.height = frameBuffer->GetFrameBufferHeight();
-            renderPassBeginInfo.renderArea.offset.x = 0;
-            renderPassBeginInfo.renderArea.offset.y = 0;
-
-            uint32_t numClearValues = inFrameBuffer->HasDepthStencil() ? inNumRenderTargets + 1 : inNumRenderTargets;
-            std::vector<VkClearValue> clearValues(numClearValues);
-            for(uint32_t i = 0; i < inNumRenderTargets; i++)
-            {
-                clearValues[i].color.float32[0] = inColor[i].Color[0];
-                clearValues[i].color.float32[1] = inColor[i].Color[1];
-                clearValues[i].color.float32[2] = inColor[i].Color[2];
-                clearValues[i].color.float32[3] = inColor[i].Color[3];
-            }
-            if(inFrameBuffer->HasDepthStencil())
-            {
-                clearValues[inNumRenderTargets].depthStencil.depth = inDepth;
-                clearValues[inNumRenderTargets].depthStencil.stencil = inStencil;
-            }
-            renderPassBeginInfo.clearValueCount = numClearValues;
-            renderPassBeginInfo.pClearValues = clearValues.data();
-            vkCmdBeginRenderPass(m_CmdBufferHandle, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        }
-    }
-}
-
-void VulkanCommandList::EndRenderPass()
-{
-    if (IsValid())
-    {
-        vkCmdEndRenderPass(m_CmdBufferHandle);
-        FlushBarriers();
-    }
-}
-
-void VulkanCommandList::ResourceBarrier(std::shared_ptr<RHITexture>& inResource , ERHIResourceStates inAfterState)
-{
-    if(IsValid())
-    {
-        VulkanTexture* texture = CheckCast<VulkanTexture*>(inResource.get());
+        VulkanTexture* texture = CheckCast<VulkanTexture*>(inResource.GetReference());
         const RHITextureDesc& desc = inResource->GetDesc();
         if(texture && texture->IsValid())
         {

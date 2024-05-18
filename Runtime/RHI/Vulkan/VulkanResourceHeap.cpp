@@ -3,14 +3,14 @@
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-std::shared_ptr<RHIResourceHeap> VulkanDevice::CreateResourceHeap(const RHIResourceHeapDesc& inDesc)
+RefCountPtr<RHIResourceHeap> VulkanDevice::CreateResourceHeap(const RHIResourceHeapDesc& inDesc)
 {
     const VkMemoryPropertyFlags memoryPropertyFlags = RHI::Vulkan::ConvertHeapType(inDesc.Type);
     
     uint32_t memoryTypeIndex;
     if(GetMemoryTypeIndex(inDesc.TypeFilter, memoryPropertyFlags, memoryTypeIndex))
     {
-        std::shared_ptr<RHIResourceHeap> heap(new VulkanResourceHeap(*this, inDesc, memoryTypeIndex));
+        RefCountPtr<RHIResourceHeap> heap(new VulkanResourceHeap(*this, inDesc, memoryTypeIndex));
         if(!heap->Init())
         {
             Log::Error("[Vulkan] Failed to create resource heap!");

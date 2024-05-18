@@ -28,7 +28,7 @@ bool D3D12RayTracingPipeline::Init()
     CD3DX12_STATE_OBJECT_DESC pipelineDesc(D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE);
 
     // Create global root signature sub object
-    const D3D12PipelineBindingLayout* bindingLayout = CheckCast<D3D12PipelineBindingLayout*>(m_Desc.GlobalBindingLayout.get());
+    const D3D12PipelineBindingLayout* bindingLayout = CheckCast<D3D12PipelineBindingLayout*>(m_Desc.GlobalBindingLayout);
     if(bindingLayout != nullptr && bindingLayout->IsValid())
     {
         auto globalSignatureSubObject = pipelineDesc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
@@ -41,9 +41,9 @@ bool D3D12RayTracingPipeline::Init()
     auto pipelineConfigSubObject = pipelineDesc.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
     pipelineConfigSubObject->Config(m_Desc.MaxRecursionDepth);
     
-    auto ImportShader = [&](const std::shared_ptr<RHIShader>& inShader)
+    auto ImportShader = [&](const RefCountPtr<RHIShader>& inShader)
     {
-        const D3D12Shader* shader = CheckCast<D3D12Shader*>(inShader.get());
+        const D3D12Shader* shader = CheckCast<D3D12Shader*>(inShader.GetReference());
         if(shader && shader->IsValid())
         {
             auto shaderSubObject = pipelineDesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
@@ -53,9 +53,9 @@ bool D3D12RayTracingPipeline::Init()
         }
     };
 
-    auto AssociateLocalRootSignature = [&](const std::shared_ptr<RHIPipelineBindingLayout>& inLayout, const std::wstring& inExportName)
+    auto AssociateLocalRootSignature = [&](const RefCountPtr<RHIPipelineBindingLayout>& inLayout, const std::wstring& inExportName)
     {
-        const D3D12PipelineBindingLayout* localBindingLayout = CheckCast<D3D12PipelineBindingLayout*>(inLayout.get());
+        const D3D12PipelineBindingLayout* localBindingLayout = CheckCast<D3D12PipelineBindingLayout*>(inLayout.GetReference());
         if(localBindingLayout)
         {
             auto localRootSignatureSubObject = pipelineDesc.CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();

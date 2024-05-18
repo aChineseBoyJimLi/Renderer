@@ -93,7 +93,6 @@ void D3D12SwapChain::InitBackBuffers()
             backBufferDesc.Height = m_Desc.Height;
             backBufferDesc.Format = m_Desc.Format;
             backBufferDesc.Usages = ERHITextureUsage::ShaderResource | ERHITextureUsage::RenderTarget;
-            // backBufferDesc.InitialState = ERHIResourceStates::Present;
             backBufferDesc.SampleCount = m_Desc.SampleCount;
             m_BackBuffers[i] = m_Device.CreateTexture(backBufferDesc, renderTexture);
         }
@@ -131,6 +130,7 @@ void D3D12SwapChain::Present()
 
 void D3D12SwapChain::Resize(uint32_t inWidth, uint32_t inHeight)
 {
+    m_Device.FlushDirectCommandQueue();
     m_Desc.Width = inWidth;
     m_Desc.Height = inHeight;
     if(IsValid())
@@ -139,22 +139,26 @@ void D3D12SwapChain::Resize(uint32_t inWidth, uint32_t inHeight)
         
         DXGI_SWAP_CHAIN_DESC swapChainDesc;
         m_SwapChainHandle->GetDesc(&swapChainDesc);
-        m_SwapChainHandle->ResizeBuffers(m_Desc.BufferCount, inWidth, inHeight, m_SwapChainFormat, swapChainDesc.Flags);
-
+        HRESULT hr = m_SwapChainHandle->ResizeBuffers(m_Desc.BufferCount, inWidth, inHeight, m_SwapChainFormat, swapChainDesc.Flags);
+        if(FAILED(hr))
+        {
+            OUTPUT_D3D12_FAILED_RESULT(hr)
+            return;
+        }
         InitBackBuffers();
     }
 }
 
-std::shared_ptr<RHITexture> D3D12SwapChain::GetBackBuffer(uint32_t index)
+RHITexture* D3D12SwapChain::GetBackBuffer(uint32_t index)
 {
     if(index < m_BackBuffers.size())
     {
-        return m_BackBuffers[index];
+        return m_BackBuffers[index].GetReference();
     }
     return nullptr;
 }
 
-std::shared_ptr<RHITexture> D3D12SwapChain::GetCurrentBackBuffer()
+RHITexture* D3D12SwapChain::GetCurrentBackBuffer()
 {
     return GetBackBuffer(m_CurrentBackBufferIndex);
 }

@@ -1,11 +1,12 @@
-#include "VulkanResources.h"
+#include "VulkanPipelineState.h"
 #include "VulkanDevice.h"
+#include "VulkanResources.h"
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-std::shared_ptr<RHIFrameBuffer> VulkanDevice::CreateFrameBuffer(const RHIFrameBufferDesc& inDesc)
+RefCountPtr<RHIFrameBuffer> VulkanDevice::CreateFrameBuffer(const RHIFrameBufferDesc& inDesc)
 {
-    std::shared_ptr<RHIFrameBuffer> frameBuffer(new VulkanFrameBuffer(*this, inDesc));
+    RefCountPtr<RHIFrameBuffer> frameBuffer(new VulkanFrameBuffer(*this, inDesc));
     if(!frameBuffer->Init())
     {
         Log::Error("[Vulkan] Failed to create frame buffer");
@@ -17,7 +18,9 @@ VulkanFrameBuffer::VulkanFrameBuffer(VulkanDevice& inDevice, const RHIFrameBuffe
     : m_Device(inDevice)
     , m_Desc(inDesc)
     , m_AttachmentCount(0)
-    , m_RenderPassHandle(VK_NULL_HANDLE)
+    , m_FrameBufferWidth(0)
+    , m_FrameBufferHeight(0)
+    , m_NumRenderTargets(0)
     , m_FrameBufferHandle(VK_NULL_HANDLE)
 {
     for(uint32_t i = 0; i < RHIRenderTargetsMaxCount; ++i)
@@ -42,102 +45,16 @@ bool VulkanFrameBuffer::Init()
         return true;
     }
 
-    const bool hasDepthStencil = HasDepthStencil();
-    const uint32_t renderTargetsCount = GetNumRenderTargets();
-    m_AttachmentCount = hasDepthStencil ? renderTargetsCount + 1 : renderTargetsCount;
-
-    std::vector<VkAttachmentDescription> attachmentDescs(m_AttachmentCount);
-    std::vector<VkAttachmentReference> colorAttachmentRefs(renderTargetsCount);
-
-    for(uint32_t i = 0; i < renderTargetsCount; i++)
+    VulkanGraphicsPipeline* pipelineState = CheckCast<VulkanGraphicsPipeline*>(m_Desc.PipelineState);
+    if(pipelineState == nullptr || !pipelineState->IsValid())
     {
-        const RHITextureDesc& textureDesc = m_Desc.RenderTargets[i]->GetDesc();
-        attachmentDescs[i].samples = RHI::Vulkan::ConvertSampleBits(textureDesc.SampleCount);
-        attachmentDescs[i].format = RHI::Vulkan::ConvertFormat(textureDesc.Format);
-        attachmentDescs[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        // attachmentDescs[i].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-        attachmentDescs[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        attachmentDescs[i].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        attachmentDescs[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        
-        colorAttachmentRefs[i].attachment = i;
-        colorAttachmentRefs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    }
-
-    VkAttachmentReference depthStencilAttachmentRef{};
-    if(hasDepthStencil)
-    {
-        const RHITextureDesc& textureDesc = m_Desc.DepthStencil->GetDesc();
-        const RHIFormatInfo& formatInfo = RHI::GetFormatInfo(textureDesc.Format);
-        const uint32_t depthStencilAttachmentIndex = renderTargetsCount;
-        attachmentDescs[depthStencilAttachmentIndex].samples = RHI::Vulkan::ConvertSampleBits(textureDesc.SampleCount);
-        attachmentDescs[depthStencilAttachmentIndex].format = RHI::Vulkan::ConvertFormat(textureDesc.Format);
-        attachmentDescs[depthStencilAttachmentIndex].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachmentDescs[depthStencilAttachmentIndex].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        attachmentDescs[depthStencilAttachmentIndex].stencilLoadOp = formatInfo.HasStencil ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachmentDescs[depthStencilAttachmentIndex].stencilStoreOp = formatInfo.HasStencil ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachmentDescs[depthStencilAttachmentIndex].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachmentDescs[depthStencilAttachmentIndex].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depthStencilAttachmentRef.attachment = depthStencilAttachmentIndex;
-        depthStencilAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    }
-
-    // Only one subpass for now
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = static_cast<uint32_t>(colorAttachmentRefs.size());
-    subpass.pColorAttachments = colorAttachmentRefs.data();
-    subpass.pDepthStencilAttachment = hasDepthStencil ? &depthStencilAttachmentRef : nullptr;
-    VkRenderPassCreateInfo renderPassCreateInfo{};
-    renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassCreateInfo.attachmentCount = static_cast<uint32_t>(attachmentDescs.size());
-    renderPassCreateInfo.pAttachments = attachmentDescs.data();
-    renderPassCreateInfo.subpassCount = 1;
-    renderPassCreateInfo.pSubpasses = &subpass;
-    renderPassCreateInfo.dependencyCount = 0;
-    renderPassCreateInfo.pDependencies = nullptr;
-
-    VkResult result = vkCreateRenderPass(m_Device.GetDevice(), &renderPassCreateInfo, nullptr, &m_RenderPassHandle);
-    if(result != VK_SUCCESS)
-    {
-        OUTPUT_VULKAN_FAILED_RESULT(result)
+        Log::Error("[Vulkan] Failed to create framebuffer, pipeline state is invalid");
         return false;
     }
-    
-    return CreateFrameBuffer();
-}
 
-void VulkanFrameBuffer::Shutdown()
-{
-    ShutdownInternal();
-}
+    m_NumRenderTargets = m_Desc.PipelineState->GetDesc().NumRenderTarget;
+    m_AttachmentCount = HasDepthStencil() ? m_NumRenderTargets + 1 : m_NumRenderTargets;
 
-bool VulkanFrameBuffer::Resize(std::shared_ptr<RHITexture>* inRenderTargets, std::shared_ptr<RHITexture> inDepthStencil)
-{
-    DestroyFrameBuffer();
-    for(uint32_t i = 0; i < GetNumRenderTargets(); i++)
-    {
-        if(!inRenderTargets[i] || !inRenderTargets[i]->IsValid())
-        {
-            Log::Error("[Vulkan] Failed to resize framebuffer, new render targets %d is invalid", i);
-            return false;
-        }
-        m_Desc.RenderTargets[i] = inRenderTargets[i];
-    }
-    if(HasDepthStencil())
-    {
-        if(!inDepthStencil || !inDepthStencil->IsValid())
-        {
-            Log::Error("[Vulkan] Failed to resize framebuffer, new depth stencil texture is invalid");
-            return false;
-        }
-        m_Desc.DepthStencil = inDepthStencil;
-    }
-    return CreateFrameBuffer();
-}
-
-bool VulkanFrameBuffer::CreateFrameBuffer()
-{
     std::vector<VkImageView> imageViews;
     for(uint32_t i = 0; i < GetNumRenderTargets(); i++)
     {
@@ -145,7 +62,7 @@ bool VulkanFrameBuffer::CreateFrameBuffer()
         m_FrameBufferWidth = textureDesc.Width;
         m_FrameBufferHeight = textureDesc.Height;
         
-        m_RenderTargets[i] = CheckCast<VulkanTexture*>(m_Desc.RenderTargets[i].get());
+        m_RenderTargets[i] = CheckCast<VulkanTexture*>(m_Desc.RenderTargets[i]);
         if(!m_RenderTargets[i] || !m_RenderTargets[i]->IsValid())
         {
             Log::Error("[Vulkan] Render target %u is invalid", i);
@@ -167,7 +84,7 @@ bool VulkanFrameBuffer::CreateFrameBuffer()
     if(HasDepthStencil())
     {
         const RHITextureDesc& textureDesc = m_Desc.DepthStencil->GetDesc();
-        m_DepthStencil = CheckCast<VulkanTexture*>(m_Desc.DepthStencil.get());
+        m_DepthStencil = CheckCast<VulkanTexture*>(m_Desc.DepthStencil);
         m_FrameBufferWidth = textureDesc.Width;
         m_FrameBufferHeight = textureDesc.Height;
         if(!m_DepthStencil || !m_DepthStencil->IsValid())
@@ -183,13 +100,12 @@ bool VulkanFrameBuffer::CreateFrameBuffer()
                 return false;       
             }
         }
-
         imageViews.push_back(m_DSVHandle);
     }
     
     VkFramebufferCreateInfo frameBufferCreateInfo{};
     frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    frameBufferCreateInfo.renderPass = m_RenderPassHandle;
+    frameBufferCreateInfo.renderPass = pipelineState->GetRenderPass();
     frameBufferCreateInfo.attachmentCount = m_AttachmentCount;
     frameBufferCreateInfo.pAttachments = imageViews.data();
     frameBufferCreateInfo.width = m_FrameBufferWidth;
@@ -205,7 +121,12 @@ bool VulkanFrameBuffer::CreateFrameBuffer()
     return true;
 }
 
-void VulkanFrameBuffer::DestroyFrameBuffer()
+void VulkanFrameBuffer::Shutdown()
+{
+    ShutdownInternal();
+}
+
+void VulkanFrameBuffer::ShutdownInternal()
 {
     if(m_FrameBufferHandle != VK_NULL_HANDLE)
     {
@@ -222,19 +143,9 @@ void VulkanFrameBuffer::DestroyFrameBuffer()
     m_DSVHandle = VK_NULL_HANDLE;
 }
 
-void VulkanFrameBuffer::ShutdownInternal()
-{
-    if(m_RenderPassHandle != VK_NULL_HANDLE)
-    {
-        vkDestroyRenderPass(m_Device.GetDevice(), m_RenderPassHandle, nullptr);
-        m_RenderPassHandle = VK_NULL_HANDLE;
-    }
-    DestroyFrameBuffer();
-}
-
 bool VulkanFrameBuffer::IsValid() const
 {
-    return m_FrameBufferHandle != VK_NULL_HANDLE && m_RenderPassHandle != VK_NULL_HANDLE;
+    return m_FrameBufferHandle != VK_NULL_HANDLE;
 }
 
 void VulkanFrameBuffer::SetNameInternal()
@@ -247,7 +158,7 @@ void VulkanFrameBuffer::SetNameInternal()
 
 ERHIFormat VulkanFrameBuffer::GetRenderTargetFormat(uint32_t inIndex) const
 {
-    if(inIndex < m_Desc.NumRenderTargets && m_Desc.RenderTargets[inIndex] != nullptr)
+    if(inIndex < m_NumRenderTargets && m_Desc.RenderTargets[inIndex] != nullptr)
     {
         return m_Desc.RenderTargets[inIndex]->GetDesc().Format;
     }

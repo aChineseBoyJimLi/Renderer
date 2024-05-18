@@ -3,9 +3,9 @@
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-std::shared_ptr<RHIShader> VulkanDevice::CreateShader(ERHIShaderType inType)
+RefCountPtr<RHIShader> VulkanDevice::CreateShader(ERHIShaderType inType)
 {
-    std::shared_ptr<RHIShader> shader(new VulkanShader(inType));
+    RefCountPtr<RHIShader> shader(new VulkanShader(inType));
     if(!shader->Init())
     {
         Log::Error("[Vulkan] Failed to create shader");
@@ -13,9 +13,9 @@ std::shared_ptr<RHIShader> VulkanDevice::CreateShader(ERHIShaderType inType)
     return shader;
 }
 
-std::shared_ptr<RHIComputePipeline> VulkanDevice::CreateComputePipeline(const RHIComputePipelineDesc& inDesc)
+RefCountPtr<RHIComputePipeline> VulkanDevice::CreatePipeline(const RHIComputePipelineDesc& inDesc)
 {
-    std::shared_ptr<RHIComputePipeline> pipeline(new VulkanComputePipeline(*this, inDesc));
+    RefCountPtr<RHIComputePipeline> pipeline(new VulkanComputePipeline(*this, inDesc));
     if(!pipeline->Init())
     {
         Log::Error("[Vulkan] Failed to create compute pipeline");
@@ -48,7 +48,7 @@ bool VulkanComputePipeline::Init()
         return false;
     }
 
-    VulkanPipelineBindingLayout* bindingLayout = CheckCast<VulkanPipelineBindingLayout*>(m_Desc.BindingLayout.get());
+    VulkanPipelineBindingLayout* bindingLayout = CheckCast<VulkanPipelineBindingLayout*>(m_Desc.BindingLayout);
     if(bindingLayout == nullptr || !bindingLayout->IsValid())
     {
         Log::Error("[Vulkan] The compute pipeline binding layout is invalid");

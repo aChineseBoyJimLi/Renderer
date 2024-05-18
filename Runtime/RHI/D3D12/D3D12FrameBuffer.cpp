@@ -1,11 +1,12 @@
 #include "D3D12Resources.h"
 #include "D3D12Device.h"
+#include "D3D12PipelineState.h"
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-std::shared_ptr<RHIFrameBuffer> D3D12Device::CreateFrameBuffer(const RHIFrameBufferDesc& inDesc)
+RefCountPtr<RHIFrameBuffer> D3D12Device::CreateFrameBuffer(const RHIFrameBufferDesc& inDesc)
 {
-    std::shared_ptr<RHIFrameBuffer> frameBuffer(new D3D12FrameBuffer(*this, inDesc));
+    RefCountPtr<RHIFrameBuffer> frameBuffer(new D3D12FrameBuffer(*this, inDesc));
     if(!frameBuffer->Init())
     {
         Log::Error("[D3D12] Failed to create frame buffer");
@@ -16,8 +17,15 @@ std::shared_ptr<RHIFrameBuffer> D3D12Device::CreateFrameBuffer(const RHIFrameBuf
 D3D12FrameBuffer::D3D12FrameBuffer(D3D12Device& inDevice, const RHIFrameBufferDesc& inDesc)
     : m_Device(inDevice)
     , m_Desc(inDesc)
+    , m_FrameBufferWidth(0)
+    , m_FrameBufferHeight(0)
+    , m_NumRenderTargets(0)
 {
-    ShutdownInternal();
+    for(uint32_t i = 0; i < RHIRenderTargetsMaxCount; ++i)
+    {
+        m_RenderTargets[i] = nullptr;
+    }
+    m_DepthStencil = nullptr;
 }
 
 D3D12FrameBuffer::~D3D12FrameBuffer()
@@ -33,9 +41,11 @@ bool D3D12FrameBuffer::Init()
         return true;
     }
 
-    for(uint32_t i = 0; i < m_Desc.NumRenderTargets; ++i)
+    m_NumRenderTargets = m_Desc.PipelineState->GetDesc().NumRenderTarget;
+
+    for(uint32_t i = 0; i < m_NumRenderTargets; ++i)
     {
-        m_RenderTargets[i] = CheckCast<D3D12Texture*>(GetRenderTarget(i).get());
+        m_RenderTargets[i] = CheckCast<D3D12Texture*>(m_Desc.RenderTargets[i]);
         
         if(!m_RenderTargets[i] || !m_RenderTargets[i]->IsValid())
         {
@@ -55,7 +65,7 @@ bool D3D12FrameBuffer::Init()
         }
     }
 
-    m_DepthStencil = CheckCast<D3D12Texture*>(GetDepthStencil().get());
+    m_DepthStencil = CheckCast<D3D12Texture*>(m_Desc.DepthStencil);
     if(m_DepthStencil && m_DepthStencil->IsValid())
     {
         if(!m_DepthStencil->TryGetDSVHandle(m_DSVHandle))
@@ -81,7 +91,7 @@ void D3D12FrameBuffer::Shutdown()
 bool D3D12FrameBuffer::IsValid() const
 {
     D3D12_CPU_DESCRIPTOR_HANDLE handle;
-    for(uint32_t i = 0; i < m_Desc.NumRenderTargets; ++i)
+    for(uint32_t i = 0; i < m_NumRenderTargets; ++i)
     {
         if(!m_RenderTargets[i] || !m_RenderTargets[i]->IsValid() || !m_RenderTargets[i]->TryGetRTVHandle(handle))
             return false;
@@ -95,42 +105,20 @@ bool D3D12FrameBuffer::IsValid() const
     return true;
 }
 
-bool D3D12FrameBuffer::Resize(std::shared_ptr<RHITexture>* inRenderTargets, std::shared_ptr<RHITexture> inDepthStencil)
-{
-    ShutdownInternal();
-    for(uint32_t i = 0; i < GetNumRenderTargets(); i++)
-    {
-        if(!inRenderTargets[i] || !inRenderTargets[i]->IsValid())
-        {
-            Log::Error("[D3D12] Failed to resize framebuffer, new render targets %d is invalid", i);
-            return false;
-        }
-        m_Desc.RenderTargets[i] = inRenderTargets[i];
-    }
-    if(HasDepthStencil())
-    {
-        if(!inDepthStencil || !inDepthStencil->IsValid())
-        {
-            Log::Error("[D3D12] Failed to resize framebuffer, new depth stencil texture is invalid");
-            return false;
-        }
-        m_Desc.DepthStencil = inDepthStencil;
-    }
-    return Init();
-}
-
 void D3D12FrameBuffer::ShutdownInternal()
 {
     for(uint32_t i = 0; i < RHIRenderTargetsMaxCount; ++i)
     {
+        m_Desc.RenderTargets[i] = nullptr;
         m_RenderTargets[i] = nullptr;
     }
+    m_Desc.DepthStencil = nullptr;
     m_DepthStencil = nullptr;
 }
 
 ERHIFormat D3D12FrameBuffer::GetRenderTargetFormat(uint32_t inIndex) const
 {
-    if(inIndex < m_Desc.NumRenderTargets && m_Desc.RenderTargets[inIndex] != nullptr)
+    if(inIndex < m_NumRenderTargets && m_Desc.RenderTargets[inIndex] != nullptr)
     {
         return m_Desc.RenderTargets[inIndex]->GetDesc().Format;
     }
@@ -150,5 +138,5 @@ ERHIFormat D3D12FrameBuffer::GetDepthStencilFormat() const
         return ERHIFormat::Unknown;
     }
 }
-    
+
     

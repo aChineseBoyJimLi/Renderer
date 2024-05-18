@@ -58,7 +58,7 @@ namespace RHI
         return s_Device;
     }
 
-    std::shared_ptr<RHISwapChain> CreateSwapChain(const RHISwapChainDesc& inDesc)
+    RefCountPtr<RHISwapChain> CreateSwapChain(const RHISwapChainDesc& inDesc)
     {
 #if HAS_VULKAN
         if(s_UseVulkan)
@@ -69,7 +69,7 @@ namespace RHI
                 Log::Error("[Vulkan] Failed to create swap chain, the device is not valid");
                 return nullptr;
             }
-            std::shared_ptr<RHISwapChain> swapChain(new VulkanSwapChain(*device, inDesc));
+            RefCountPtr<RHISwapChain> swapChain(new VulkanSwapChain(*device, inDesc));
             if(!swapChain->Init())
             {
                 Log::Error("[Vulkan] Failed to create swap chain");
@@ -85,7 +85,7 @@ namespace RHI
                 Log::Error("[D3D12] Failed to create swap chain, the device is not valid");
                 return nullptr;
             }
-            std::shared_ptr<RHISwapChain> swapChain(new D3D12SwapChain(*device, inDesc));
+            RefCountPtr<RHISwapChain> swapChain(new D3D12SwapChain(*device, inDesc));
             if(!swapChain->Init())
             {
                 Log::Error("[D3D12] Failed to create swap chain");
@@ -96,7 +96,7 @@ namespace RHI
 
     // ERHIFormat mapping table. The rows must be in the exactly same order as ERHIFormat enum members are defined.
     static const RHIFormatInfo s_FormatInfo[] = {
-    //        format                   name             bytes blk         kind               red   green   blue  alpha  depth  stencl signed  srgb
+    //        format                    name             bytes  blk         kind               red   green   blue  alpha  depth  stencl signed  srgb
         { ERHIFormat::Unknown,           "UNKNOWN",           0,   0, ERHIFormatKind::Integer,      false, false, false, false, false, false, false, false },
         { ERHIFormat::R8_UINT,           "R8_UINT",           1,   1, ERHIFormatKind::Integer,      true,  false, false, false, false, false, false, false },
         { ERHIFormat::R8_SINT,           "R8_SINT",           1,   1, ERHIFormatKind::Integer,      true,  false, false, false, false, false, true,  false },

@@ -234,16 +234,16 @@ void VulkanSwapChain::Resize(uint32_t inWidth, uint32_t inHeight)
     CreateSwapChain();
 }
 
-std::shared_ptr<RHITexture> VulkanSwapChain::GetBackBuffer(uint32_t index)
+RHITexture* VulkanSwapChain::GetBackBuffer(uint32_t index)
 {
     if(index < m_BackBuffers.size())
     {
-        return m_BackBuffers[index];
+        return m_BackBuffers[index].GetReference();
     }
     return nullptr;
 }
 
-std::shared_ptr<RHITexture> VulkanSwapChain::GetCurrentBackBuffer()
+RHITexture* VulkanSwapChain::GetCurrentBackBuffer()
 {
     return GetBackBuffer(m_CurrentBackBufferIndex);
 }

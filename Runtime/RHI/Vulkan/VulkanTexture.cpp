@@ -3,10 +3,9 @@
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-
-std::shared_ptr<RHITexture> VulkanDevice::CreateTexture(const RHITextureDesc& inDesc, bool isVirtual)
+RefCountPtr<RHITexture> VulkanDevice::CreateTexture(const RHITextureDesc& inDesc, bool isVirtual)
 {
-    std::shared_ptr<RHITexture> texture(new VulkanTexture(*this, inDesc, isVirtual));
+    RefCountPtr<RHITexture> texture(new VulkanTexture(*this, inDesc, isVirtual));
     if(!texture->Init())
     {
         Log::Error("[Vulkan] Failed to create texture");
@@ -14,9 +13,9 @@ std::shared_ptr<RHITexture> VulkanDevice::CreateTexture(const RHITextureDesc& in
     return texture;
 }
 
-std::shared_ptr<VulkanTexture> VulkanDevice::CreateTexture(const RHITextureDesc& inDesc, VkImage inImage)
+RefCountPtr<VulkanTexture> VulkanDevice::CreateTexture(const RHITextureDesc& inDesc, VkImage inImage)
 {
-    std::shared_ptr<VulkanTexture> texture(new VulkanTexture(*this, inDesc, inImage));
+    RefCountPtr<VulkanTexture> texture(new VulkanTexture(*this, inDesc, inImage));
     return texture;
 }
 
@@ -146,7 +145,7 @@ bool VulkanTexture::Init()
             Log::Error("[Vulkan] Failed to create resource heap for texture");
             return false;
         }
-        VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(m_ResourceHeap.get());
+        VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(m_ResourceHeap.GetReference());
         result = vkBindImageMemory(m_Device.GetDevice(), m_TextureHandle, heap->GetHeap(), 0);
         if(result != VK_SUCCESS)
         {
@@ -158,7 +157,7 @@ bool VulkanTexture::Init()
     return true;
 }
 
-bool VulkanTexture::BindMemory(std::shared_ptr<RHIResourceHeap> inHeap)
+bool VulkanTexture::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
 {
     if(!IsManaged())
     {
@@ -178,7 +177,7 @@ bool VulkanTexture::BindMemory(std::shared_ptr<RHIResourceHeap> inHeap)
         return true;
     }
 
-    VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(inHeap.get());
+    VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(inHeap.GetReference());
     if(heap == nullptr || !heap->IsValid())
     {
         Log::Error("[Vulkan] Failed to bind texture memory, the heap is invalid");
@@ -255,7 +254,7 @@ void VulkanTexture::ShutdownInternal()
     if(m_ResourceHeap != nullptr)
     {
         m_ResourceHeap->Free(m_OffsetInHeap, GetSizeInByte());
-        m_ResourceHeap.reset();
+        m_ResourceHeap.SafeRelease();
         m_OffsetInHeap = 0;
     }
     

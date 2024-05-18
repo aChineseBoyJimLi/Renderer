@@ -5,9 +5,19 @@
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-std::shared_ptr<RHIBuffer> D3D12Device::CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual)
+RefCountPtr<RHIBuffer> D3D12Device::CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual)
 {
-    std::shared_ptr<RHIBuffer> buffer(new D3D12Buffer(*this, inDesc, isVirtual));
+    RefCountPtr<RHIBuffer> buffer(new D3D12Buffer(*this, inDesc, isVirtual));
+    if(!buffer->Init())
+    {
+        Log::Error("[D3D12] Failed to create buffer");
+    }
+    return buffer;
+}
+
+RefCountPtr<D3D12Buffer> D3D12Device::CreateD3D12Buffer(const RHIBufferDesc& inDesc)
+{
+    RefCountPtr<D3D12Buffer> buffer(new D3D12Buffer(*this, inDesc, false));
     if(!buffer->Init())
     {
         Log::Error("[D3D12] Failed to create buffer");
@@ -77,7 +87,7 @@ bool D3D12Buffer::Init()
     }
 
     m_BufferDescD3D = CD3DX12_RESOURCE_DESC::Buffer(m_Desc.Size, flags);
-    m_ResourceHeap.reset();
+    m_ResourceHeap.SafeRelease();
     m_ConstantBufferViews.clear();
     m_ShaderResourceViews.clear();
     m_UnorderedAccessViews.clear();
@@ -148,7 +158,7 @@ void D3D12Buffer::ShutdownInternal()
     if(m_ResourceHeap != nullptr)
     {
         m_ResourceHeap->Free(m_OffsetInHeap, GetSizeInByte());
-        m_ResourceHeap.reset();
+        m_ResourceHeap.SafeRelease();
         m_OffsetInHeap = 0;
     }
 
@@ -219,7 +229,7 @@ void D3D12Buffer::ReadData(void* outData, uint64_t inSize, uint64_t inOffset)
     Unmap();
 }
 
-bool D3D12Buffer::BindMemory(std::shared_ptr<RHIResourceHeap> inHeap)
+bool D3D12Buffer::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
 {
     if(!IsManaged())
     {
@@ -239,7 +249,7 @@ bool D3D12Buffer::BindMemory(std::shared_ptr<RHIResourceHeap> inHeap)
         return true;
     }
 
-    D3D12ResourceHeap* heap = CheckCast<D3D12ResourceHeap*>(inHeap.get());
+    D3D12ResourceHeap* heap = CheckCast<D3D12ResourceHeap*>(inHeap.GetReference());
 
     if(heap == nullptr || !heap->IsValid())
     {

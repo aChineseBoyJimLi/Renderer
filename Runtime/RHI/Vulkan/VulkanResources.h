@@ -58,7 +58,7 @@ public:
     void  ReadData(void* outData, uint64_t inSize, uint64_t inOffset = 0) override;
     bool IsVirtual() const override { return IsVirtualBuffer; }
     bool IsManaged() const override { return IsManagedBuffer; }
-    bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap) override;
+    bool BindMemory(RefCountPtr<RHIResourceHeap> inHeap) override;
     size_t GetOffsetInHeap() const override { return m_OffsetInHeap; }
     const RHIBufferDesc& GetDesc() const override { return m_Desc; }
     RHIResourceGpuAddress GetGpuAddress() const override;
@@ -83,7 +83,7 @@ private:
     VkAccessFlags m_InitialAccessFlags;
     VkMemoryRequirements m_MemRequirements;
 
-    std::shared_ptr<RHIResourceHeap> m_ResourceHeap;
+    RefCountPtr<RHIResourceHeap> m_ResourceHeap;
     size_t m_OffsetInHeap;
 
     int32_t m_NumMapCalls;
@@ -114,8 +114,8 @@ public:
     bool IsValid() const override;
     bool IsVirtual() const override { return IsVirtualTexture; }
     bool IsManaged() const override { return IsManagedTexture; }
-    const RHIClearValue& GetClearValue() override { return m_Desc.ClearValue; }
-    bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap) override;
+    const RHIClearValue& GetClearValue() const override { return m_Desc.ClearValue; }
+    bool BindMemory(RefCountPtr<RHIResourceHeap> inHeap) override;
     const RHITextureDesc& GetDesc() const override { return m_Desc; }
     size_t GetOffsetInHeap() const override { return m_OffsetInHeap; }
     uint32_t GetMemTypeFilter()  const override { return m_MemRequirements.memoryTypeBits; }
@@ -156,7 +156,7 @@ private:
     VkImageLayout m_InitialLayout;
     VkMemoryRequirements m_MemRequirements;
 
-    std::shared_ptr<RHIResourceHeap> m_ResourceHeap;
+    RefCountPtr<RHIResourceHeap> m_ResourceHeap;
     size_t m_OffsetInHeap;
 
     std::unordered_map<RHITextureSubResource, VkImageView> m_RenderTargetViews;
@@ -191,52 +191,3 @@ private:
     VkSampler m_SamplerHandle;
 };
 
-///////////////////////////////////////////////////////////////////////////////////
-/// VulkanFrameBuffer
-///////////////////////////////////////////////////////////////////////////////////
-class VulkanFrameBuffer : public RHIFrameBuffer
-{
-public:
-    ~VulkanFrameBuffer() override;
-    bool Init() override;
-    void Shutdown() override;
-    bool IsValid() const override;
-    bool Resize(std::shared_ptr<RHITexture>* inRenderTargets, std::shared_ptr<RHITexture> inDepthStencil) override;
-    const RHIFrameBufferDesc& GetDesc() const override { return m_Desc; }
-    uint32_t GetFrameBufferWidth() const override { return m_FrameBufferWidth; }
-    uint32_t GetFrameBufferHeight() const override { return m_FrameBufferHeight; }
-    uint32_t GetNumRenderTargets() const override { return m_Desc.NumRenderTargets; }
-    std::shared_ptr<RHITexture> GetRenderTarget(uint32_t inIndex) const override { return inIndex < m_Desc.NumRenderTargets ? m_Desc.RenderTargets[inIndex] : nullptr; }
-    std::shared_ptr<RHITexture> GetDepthStencil() const override { return m_Desc.DepthStencil; }
-    bool HasDepthStencil() const override { return m_Desc.DepthStencil != nullptr; }
-    ERHIFormat GetRenderTargetFormat(uint32_t inIndex) const override;
-    ERHIFormat GetDepthStencilFormat() const override;
-    
-    VkFramebuffer GetFrameBuffer() const { return m_FrameBufferHandle; }
-    VkRenderPass GetRenderPass() const { return m_RenderPassHandle; }
-    
-protected:
-    void SetNameInternal() override;
-
-private:
-    friend VulkanDevice;
-    VulkanFrameBuffer(VulkanDevice& inDevice, const RHIFrameBufferDesc& inDesc);
-    void ShutdownInternal();
-
-    bool CreateFrameBuffer();
-    void DestroyFrameBuffer();
-    
-    VulkanDevice& m_Device;
-    RHIFrameBufferDesc m_Desc;
-    
-    VulkanTexture* m_RenderTargets[RHIRenderTargetsMaxCount];
-    VulkanTexture* m_DepthStencil;
-    uint32_t m_AttachmentCount;
-    uint32_t m_FrameBufferWidth;
-    uint32_t m_FrameBufferHeight;
-    VkRenderPass m_RenderPassHandle;
-    VkFramebuffer m_FrameBufferHandle;
-
-    VkImageView m_RTVHandles[RHIRenderTargetsMaxCount];
-    VkImageView m_DSVHandle;
-};

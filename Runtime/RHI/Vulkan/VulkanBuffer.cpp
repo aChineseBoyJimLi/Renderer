@@ -4,9 +4,9 @@
 #include "../../Core/Templates.h"
 #include <cassert>
 
-std::shared_ptr<RHIBuffer> VulkanDevice::CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual)
+RefCountPtr<RHIBuffer> VulkanDevice::CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual)
 {
-    std::shared_ptr<RHIBuffer> buffer(new VulkanBuffer(*this, inDesc, isVirtual));
+    RefCountPtr<RHIBuffer> buffer(new VulkanBuffer(*this, inDesc, isVirtual));
     if(!buffer->Init())
     {
         Log::Error("[Vulkan] Failed to create buffer");
@@ -109,7 +109,7 @@ bool VulkanBuffer::Init()
             Log::Error("[Vulkan] Failed to create resource heap for buffer");
             return false;
         }
-        VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(m_ResourceHeap.get());
+        VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(m_ResourceHeap.GetReference());
         re = vkBindBufferMemory(m_Device.GetDevice(), m_BufferHandle, heap->GetHeap(), 0);
         if(re != VK_SUCCESS)
         {
@@ -121,7 +121,7 @@ bool VulkanBuffer::Init()
     return true;
 }
 
-bool VulkanBuffer::BindMemory(std::shared_ptr<RHIResourceHeap> inHeap)
+bool VulkanBuffer::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
 {
     if(!IsManaged())
     {
@@ -141,7 +141,7 @@ bool VulkanBuffer::BindMemory(std::shared_ptr<RHIResourceHeap> inHeap)
         return true;
     }
 
-    VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(inHeap.get());
+    VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(inHeap.GetReference());
     if(heap == nullptr || !heap->IsValid())
     {
         Log::Error("[Vulkan] Failed to bind buffer memory, the heap is invalid");
@@ -203,7 +203,7 @@ void VulkanBuffer::ShutdownInternal()
     if(m_ResourceHeap != nullptr)
     {
         m_ResourceHeap->Free(m_OffsetInHeap, GetSizeInByte());
-        m_ResourceHeap.reset();
+        m_ResourceHeap.SafeRelease();
         m_OffsetInHeap = 0;
     }
     
@@ -237,7 +237,7 @@ void* VulkanBuffer::Map(uint64_t inSize, uint64_t inOffset)
         assert(m_ResourceHeap->IsValid());
         assert(m_BufferHandle != VK_NULL_HANDLE);
         assert(m_ResourceBaseAddress == nullptr);
-        VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(m_ResourceHeap.get());
+        VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(m_ResourceHeap.GetReference());
         assert(heap != nullptr);
         vkMapMemory(m_Device.GetDevice(), heap->GetHeap(), inOffset, inSize, 0, &m_ResourceBaseAddress);
     }
@@ -259,7 +259,7 @@ void VulkanBuffer::Unmap()
     --m_NumMapCalls;
     if(m_NumMapCalls == 0)
     {
-        VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(m_ResourceHeap.get());
+        VulkanResourceHeap* heap = CheckCast<VulkanResourceHeap*>(m_ResourceHeap.GetReference());
         assert(heap != nullptr);
         vkUnmapMemory(m_Device.GetDevice(), heap->GetHeap());
         m_ResourceBaseAddress = nullptr;

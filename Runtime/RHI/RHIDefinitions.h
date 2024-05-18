@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 #include <array>
-#include <memory>
 #include <unordered_map>
+#include "../Core/RefCounting.h"
 
 #define COMMAND_QUEUES_COUNT static_cast<uint32_t>(ERHICommandQueueType::Count)
 
@@ -22,19 +22,13 @@ namespace RHI
     void                    Shutdown();
     RHIDevice*              GetDevice();
     const RHIFormatInfo&    GetFormatInfo(ERHIFormat inFormat);
-    std::shared_ptr<RHISwapChain> CreateSwapChain(const RHISwapChainDesc& inDesc);
+    RefCountPtr<RHISwapChain> CreateSwapChain(const RHISwapChainDesc& inDesc);
 }
 
-class RHIObject
+class RHIObject : public RefCounter
 {
 public:
     RHIObject() : m_Name("Unnamed") {}
-    RHIObject(const RHIObject&) = delete;
-    RHIObject& operator=(const RHIObject&)  = delete;
-    RHIObject(RHIObject&&)  = delete;
-    RHIObject& operator=(const RHIObject&&)  = delete;
-    virtual ~RHIObject() = default;
-
     virtual bool Init() { return true; }
     virtual void Shutdown() {}
     virtual bool IsValid() const { return true; }

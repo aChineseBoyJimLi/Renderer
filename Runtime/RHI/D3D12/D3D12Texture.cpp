@@ -4,9 +4,9 @@
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-std::shared_ptr<RHITexture> D3D12Device::CreateTexture(const RHITextureDesc& inDesc, bool isVirtual)
+RefCountPtr<RHITexture> D3D12Device::CreateTexture(const RHITextureDesc& inDesc, bool isVirtual)
 {
-    std::shared_ptr<RHITexture> texture(new D3D12Texture(*this, inDesc, isVirtual));
+    RefCountPtr<RHITexture> texture(new D3D12Texture(*this, inDesc, isVirtual));
     if(!texture->Init())
     {
         Log::Error("[D3D12] Failed to create texture");
@@ -14,10 +14,9 @@ std::shared_ptr<RHITexture> D3D12Device::CreateTexture(const RHITextureDesc& inD
     return texture;
 }
 
-std::shared_ptr<D3D12Texture> D3D12Device::CreateTexture(const RHITextureDesc& inDesc, const Microsoft::WRL::ComPtr<ID3D12Resource>& inResource)
+RefCountPtr<D3D12Texture> D3D12Device::CreateTexture(const RHITextureDesc& inDesc, const Microsoft::WRL::ComPtr<ID3D12Resource>& inResource)
 {
-    std::shared_ptr<D3D12Texture> texture(new D3D12Texture(*this, inDesc, inResource));
-    return texture;
+    return new D3D12Texture(*this, inDesc, inResource);
 }
 
 D3D12Texture::D3D12Texture(D3D12Device& inDevice, const RHITextureDesc& inDesc, bool inIsVirtual)
@@ -125,9 +124,7 @@ bool D3D12Texture::Init()
         m_TextureDescD3D.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
     }
 
-    
-
-    m_ResourceHeap.reset();
+    m_ResourceHeap.SafeRelease();
     m_RenderTargetViews.clear();
     m_DepthStencilViews.clear();
     m_ShaderResourceViews.clear();
@@ -189,14 +186,14 @@ void D3D12Texture::ShutdownInternal()
     if(m_ResourceHeap != nullptr)
     {
         m_ResourceHeap->Free(m_OffsetInHeap, GetSizeInByte());
-        m_ResourceHeap.reset();
+        m_ResourceHeap.SafeRelease();
         m_OffsetInHeap = 0;
     }
     
     m_TextureHandle.Reset();
 }
 
-bool D3D12Texture::BindMemory(std::shared_ptr<RHIResourceHeap> inHeap)
+bool D3D12Texture::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
 {
     if(!IsManaged())
     {
@@ -216,7 +213,7 @@ bool D3D12Texture::BindMemory(std::shared_ptr<RHIResourceHeap> inHeap)
         return true;
     }
 
-    D3D12ResourceHeap* heap = CheckCast<D3D12ResourceHeap*>(inHeap.get());
+    D3D12ResourceHeap* heap = CheckCast<D3D12ResourceHeap*>(inHeap.GetReference());
 
     if(heap == nullptr || !heap->IsValid())
     {

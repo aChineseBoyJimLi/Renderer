@@ -6,11 +6,17 @@
 #include "RHIResources.h"
 #include "RHISwapChain.h"
 
-typedef std::shared_ptr<RHIFence>           RHIFenceRef;
-typedef std::shared_ptr<RHISemaphore>       RHISemaphoreRef;
-typedef std::shared_ptr<RHICommandList>     RHICommandListRef;
-typedef std::shared_ptr<RHIBuffer>          RHIBufferRef;
-typedef std::shared_ptr<RHITexture>         RHITextureRef;
-typedef std::shared_ptr<RHISampler>         RHISamplerRef;
-typedef std::shared_ptr<RHISwapChain>       RHISwapChainRef;
-typedef std::shared_ptr<RHIPipelineBindingLayout> RHIPipelineBindingLayoutRef;
+typedef RefCountPtr<RHIFence>           RHIFenceRef;
+typedef RefCountPtr<RHISemaphore>       RHISemaphoreRef;
+typedef RefCountPtr<RHICommandList>     RHICommandListRef;
+typedef RefCountPtr<RHIBuffer>          RHIBufferRef;
+typedef RefCountPtr<RHITexture>         RHITextureRef;
+typedef RefCountPtr<RHISampler>         RHISamplerRef;
+typedef RefCountPtr<RHISwapChain>       RHISwapChainRef;
+typedef RefCountPtr<RHIPipelineBindingLayout> RHIPipelineBindingLayoutRef;
+typedef RefCountPtr<RHIGraphicsPipeline> RHIGraphicsPipelineRef;
+typedef RefCountPtr<RHIShader> RHIShaderRef;
+typedef RefCountPtr<RHIComputePipeline> RHIComputePipelineRef;
+typedef RefCountPtr<RHIRayTracingPipeline> RHIRayTracingPipelineRef;
+typedef RefCountPtr<RHISwapChain> RHISwapChainRef;
+typedef RefCountPtr<RHIFrameBuffer> RHIFrameBufferRef;

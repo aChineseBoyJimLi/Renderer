@@ -88,7 +88,7 @@ class RHIBuffer : public RHIObject
 public:
     virtual bool IsVirtual() const = 0;
     virtual bool IsManaged() const = 0;
-    virtual bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap) = 0;
+    virtual bool BindMemory(RefCountPtr<RHIResourceHeap> inHeap) = 0;
     virtual size_t GetOffsetInHeap() const = 0;
     virtual void* Map(uint64_t inSize, uint64_t inOffset = 0) = 0;
     virtual void  Unmap() = 0;
@@ -164,13 +164,13 @@ class RHITexture : public RHIObject
 public:
     virtual bool IsVirtual() const = 0;
     virtual bool IsManaged() const = 0;
-    virtual bool BindMemory(std::shared_ptr<RHIResourceHeap> inHeap) = 0;
+    virtual bool BindMemory(RefCountPtr<RHIResourceHeap> inHeap) = 0;
     virtual size_t GetOffsetInHeap() const = 0;
     virtual const RHITextureDesc& GetDesc() const = 0;
     virtual uint32_t GetMemTypeFilter() const = 0; // Using for vulkan texture memory allocation, d3d12 return UINT32_MAX
     virtual size_t GetSizeInByte() const = 0;
     virtual size_t GetAlignment() const = 0;
-    virtual const RHIClearValue& GetClearValue() = 0;
+    virtual const RHIClearValue& GetClearValue() const = 0;
     // virtual void ChangeState(const RHICommandList& inCmdList, ERHIResourceStates inState, const RHITextureSubResource& subResource = RHITextureSubResource::All) = 0;
     // virtual ERHIResourceStates GetState(const RHITextureSubResource& subResource = RHITextureSubResource::All) const = 0;
 };
@@ -204,8 +204,8 @@ public:
 
 struct RHIRayTracingGeometryTriangleDesc
 {
-    std::shared_ptr<RHIBuffer> VertexBuffer;
-    std::shared_ptr<RHIBuffer> IndexBuffer;
+    RefCountPtr<RHIBuffer> VertexBuffer;
+    RefCountPtr<RHIBuffer> IndexBuffer;
     uint32_t VertexOffsetCount;
     uint32_t IndexOffsetCount;
     uint32_t VertexCount;
@@ -214,7 +214,7 @@ struct RHIRayTracingGeometryTriangleDesc
 
 struct RHIRayTracingGeometryAABBDesc
 {
-    std::shared_ptr<RHIBuffer> Buffer;
+    RefCountPtr<RHIBuffer> Buffer;
     uint32_t OffsetCount;
     uint32_t Count;
 };
@@ -243,7 +243,7 @@ class RHIAccelerationStructure : public RHIObject
 {
 public:
     virtual const RHIAccelerationStructureDesc& GetDesc() const = 0;
-    virtual void Build(const std::shared_ptr<RHICommandList>& inCmdList) = 0;
+    virtual void Build(const RefCountPtr<RHICommandList>& inCmdList) = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -253,39 +253,15 @@ public:
 class RHIResourceSet : public RHIObject
 {
 public:
-    virtual std::shared_ptr<RHIPipelineBindingLayout> GetLayout() const = 0;
+    virtual const RHIPipelineBindingLayout* GetLayout() const = 0;
     
-    virtual void BindBuffer(ERHIBindingResourceType Type, uint32_t BaseRegister, uint32_t Space, const std::shared_ptr<RHIBuffer>& inBuffer) = 0;
-    virtual void BindBuffers(ERHIBindingResourceType Type, uint32_t BaseRegister, uint32_t Space, const std::vector<std::shared_ptr<RHIBuffer>>& inBuffers) = 0;
-    virtual void BindBuffer(uint32_t inIndex, const std::shared_ptr<RHIBuffer>& inBuffer) = 0;
-    virtual void BindBuffers(uint32_t inIndex, const std::vector<std::shared_ptr<RHIBuffer>>& inBuffers) = 0;
+    virtual void BindBuffer(ERHIBindingResourceType inType, uint32_t inBaseRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) = 0;
+    virtual void BindBuffers(ERHIBindingResourceType Type, uint32_t BaseRegister, uint32_t Space, const std::vector<RefCountPtr<RHIBuffer>>& inBuffers) = 0;
+    virtual void BindBuffer(uint32_t inIndex, const RefCountPtr<RHIBuffer>& inBuffer) = 0;
+    virtual void BindBuffers(uint32_t inIndex, const std::vector<RefCountPtr<RHIBuffer>>& inBuffers) = 0;
     
-    virtual void BindTexture(uint32_t inIndex, const std::shared_ptr<RHITexture>& inTexture) = 0;
-    virtual void BindSampler(uint32_t inIndex, const std::shared_ptr<RHISampler>& inSampler) = 0;
-    virtual void BindAccelerationStructure(uint32_t inIndex, const std::shared_ptr<RHIAccelerationStructure>& inAccelerationStructure) = 0;
+    virtual void BindTexture(uint32_t inIndex, const RefCountPtr<RHITexture>& inTexture) = 0;
+    virtual void BindSampler(uint32_t inIndex, const RefCountPtr<RHISampler>& inSampler) = 0;
+    virtual void BindAccelerationStructure(uint32_t inIndex, const RefCountPtr<RHIAccelerationStructure>& inAccelerationStructure) = 0;
 };
 
-///////////////////////////////////////////////////////////////////////////////////
-/// RHIFrameBuffer
-///////////////////////////////////////////////////////////////////////////////////
-struct RHIFrameBufferDesc
-{
-    uint32_t NumRenderTargets = 0;
-    std::shared_ptr<RHITexture> RenderTargets[RHIRenderTargetsMaxCount];
-    std::shared_ptr<RHITexture> DepthStencil;
-};
-
-class RHIFrameBuffer : public RHIObject
-{
-public:
-    virtual bool Resize(std::shared_ptr<RHITexture>* inRenderTargets, std::shared_ptr<RHITexture> inDepthStencil) = 0;
-    virtual uint32_t GetFrameBufferWidth() const = 0;
-    virtual uint32_t GetFrameBufferHeight() const = 0;
-    virtual ERHIFormat GetRenderTargetFormat(uint32_t inIndex) const = 0;
-    virtual ERHIFormat GetDepthStencilFormat() const = 0;
-    virtual std::shared_ptr<RHITexture> GetRenderTarget(uint32_t inIndex) const = 0;
-    virtual std::shared_ptr<RHITexture> GetDepthStencil() const = 0;
-    virtual const RHIFrameBufferDesc& GetDesc() const = 0;
-    virtual uint32_t GetNumRenderTargets() const = 0;
-    virtual bool HasDepthStencil() const = 0;
-};

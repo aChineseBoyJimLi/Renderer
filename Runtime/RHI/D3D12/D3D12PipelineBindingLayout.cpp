@@ -2,9 +2,9 @@
 #include "D3D12Device.h"
 #include "../../Core/Log.h"
 
-std::shared_ptr<RHIPipelineBindingLayout> D3D12Device::CreatePipelineBindingLayout(const RHIPipelineBindingLayoutDesc& inBindingItems)
+RefCountPtr<RHIPipelineBindingLayout> D3D12Device::CreatePipelineBindingLayout(const RHIPipelineBindingLayoutDesc& inBindingItems)
 {
-    std::shared_ptr<RHIPipelineBindingLayout> layout(new D3D12PipelineBindingLayout(*this, inBindingItems));
+    RefCountPtr<RHIPipelineBindingLayout> layout(new D3D12PipelineBindingLayout(*this, inBindingItems));
     if(!layout->Init())
     {
         Log::Error("Failed to create pipeline binding layout");

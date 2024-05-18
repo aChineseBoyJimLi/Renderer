@@ -12,15 +12,19 @@ public:
     bool IsValid() const override;
     void Begin() override;
     void End() override;
-    void BeginRenderPass(const std::shared_ptr<RHIFrameBuffer>& inFrameBuffer) override;
-    void BeginRenderPass(const std::shared_ptr<RHIFrameBuffer>& inFrameBuffer
+    void SetPipelineState(const RefCountPtr<RHIGraphicsPipeline>& inPipelineState) override;
+    void SetFrameBuffer(const RefCountPtr<RHIFrameBuffer>& inFrameBuffer) override;
+    void SetFrameBuffer(const RefCountPtr<RHIFrameBuffer>& inFrameBuffer
         , const RHIClearValue* inColor , uint32_t inNumRenderTargets) override;
-    void BeginRenderPass(const std::shared_ptr<RHIFrameBuffer>& inFrameBuffer
+    void SetFrameBuffer(const RefCountPtr<RHIFrameBuffer>& inFrameBuffer
         , const RHIClearValue* inColor , uint32_t inNumRenderTargets
         , float inDepth, uint8_t inStencil) override;
-    void EndRenderPass() override;
-    void ResourceBarrier(std::shared_ptr<RHITexture>& inResource , ERHIResourceStates inAfterState) override;
-    
+    void ResourceBarrier(RefCountPtr<RHITexture>& inResource , ERHIResourceStates inAfterState) override;
+    void CopyBuffer(RefCountPtr<RHIBuffer>& dstBuffer, size_t dstOffset, RefCountPtr<RHIBuffer>& srcBuffer, size_t srcOffset, size_t size) override;
+    void SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void SetViewports(const std::vector<RHIViewport>& inViewports) override;
+    void SetScissorRects(const std::vector<RHIRect>& inRects) override;
     bool IsClosed() const override { return m_IsClosed; }
     ERHICommandQueueType GetQueueType() const override { return m_QueueType; }
     VkCommandBuffer GetCommandBuffer() const { return m_CmdBufferHandle; }

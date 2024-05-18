@@ -2,6 +2,8 @@
 
 #include "RHIDefinitions.h"
 
+struct RHIGraphicsPipelineDesc;
+class RHIGraphicsPipeline;
 struct RHITextureDesc;
 class RHITexture;
 struct RHIBufferDesc;
@@ -37,17 +39,18 @@ class RHIDevice : public RHIObject
 {
 public:
     virtual ERHIBackend GetBackend() const = 0;
-    virtual std::shared_ptr<RHIFence>       CreateRhiFence() = 0;
-    virtual std::shared_ptr<RHISemaphore>   CreateRhiSemaphore() = 0;
-    virtual std::shared_ptr<RHICommandList> CreateCommandList(ERHICommandQueueType inType = ERHICommandQueueType::Direct) = 0;
-    virtual std::shared_ptr<RHIPipelineBindingLayout> CreatePipelineBindingLayout(const RHIPipelineBindingLayoutDesc& inBindingItems) = 0;
-    virtual std::shared_ptr<RHIShader> CreateShader(ERHIShaderType inType) = 0;
-    virtual std::shared_ptr<RHIComputePipeline> CreateComputePipeline(const RHIComputePipelineDesc& inDesc) = 0;
-    virtual std::shared_ptr<RHIResourceHeap> CreateResourceHeap(const RHIResourceHeapDesc& inDesc) = 0;
-    virtual std::shared_ptr<RHIBuffer> CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual = false) = 0;
-    virtual std::shared_ptr<RHITexture> CreateTexture(const RHITextureDesc& inDesc, bool isVirtual = false) = 0;
-    virtual std::shared_ptr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) = 0;
-    virtual void ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCommandList, const std::shared_ptr<RHIFence>& inSignalFence = nullptr,
-                            const std::vector<std::shared_ptr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
-                            const std::vector<std::shared_ptr<RHISemaphore>>* inSignalSemaphores = nullptr) = 0;
+    virtual RefCountPtr<RHIFence>       CreateRhiFence() = 0;
+    virtual RefCountPtr<RHISemaphore>   CreateRhiSemaphore() = 0;
+    virtual RefCountPtr<RHICommandList> CreateCommandList(ERHICommandQueueType inType = ERHICommandQueueType::Direct) = 0;
+    virtual RefCountPtr<RHIPipelineBindingLayout> CreatePipelineBindingLayout(const RHIPipelineBindingLayoutDesc& inBindingItems) = 0;
+    virtual RefCountPtr<RHIShader> CreateShader(ERHIShaderType inType) = 0;
+    virtual RefCountPtr<RHIComputePipeline> CreatePipeline(const RHIComputePipelineDesc& inDesc) = 0;
+    virtual RefCountPtr<RHIGraphicsPipeline> CreatePipeline(const RHIGraphicsPipelineDesc& inDesc) = 0;
+    virtual RefCountPtr<RHIResourceHeap> CreateResourceHeap(const RHIResourceHeapDesc& inDesc) = 0;
+    virtual RefCountPtr<RHIBuffer> CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual = false) = 0;
+    virtual RefCountPtr<RHITexture> CreateTexture(const RHITextureDesc& inDesc, bool isVirtual = false) = 0;
+    virtual RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) = 0;
+    virtual void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr,
+                            const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
+                            const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores = nullptr) = 0;
 };

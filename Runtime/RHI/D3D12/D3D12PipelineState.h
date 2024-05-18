@@ -4,6 +4,7 @@
 #include "../RHIPipelineState.h"
 
 class D3D12Device;
+class D3D12Texture;
 
 ///////////////////////////////////////////////////////////////////////////////////
 /// D3D12PipelineBindingLayout
@@ -101,20 +102,6 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////
 /// D3D12GraphicsPipeline
 ///////////////////////////////////////////////////////////////////////////////////
-class D3D12VertexInputLayout : public RHIVertexInputLayout
-{
-public:
-    // void SetVertexInputLayoutDesc(const RHIVertexInputLayoutDesc& inDesc) override;
-    const RHIVertexInputLayoutDesc& GetDesc() const override { return m_Desc; }
-    const D3D12_INPUT_ELEMENT_DESC* GetInputElements() const { return m_D3DInputElements.data(); }
-    uint32_t GetElementsCount() const { return static_cast<uint32_t>(m_D3DInputElements.size()); }
-    
-private:
-    D3D12VertexInputLayout(const RHIVertexInputLayoutDesc& inDesc);
-    RHIVertexInputLayoutDesc m_Desc;
-    std::vector<D3D12_INPUT_ELEMENT_DESC> m_D3DInputElements;
-};
-
 class D3D12GraphicsPipeline : public RHIGraphicsPipeline
 {
 public:
@@ -123,6 +110,7 @@ public:
     void Shutdown() override;
     bool IsValid() const override;
     const RHIGraphicsPipelineDesc& GetDesc() const override { return m_Desc; }
+    ID3D12PipelineState* GetPipelineState() const { return m_PipelineState.Get(); }
     
 protected:
     void SetNameInternal() override;
@@ -131,6 +119,7 @@ private:
     friend D3D12Device;
     D3D12GraphicsPipeline(D3D12Device& inDevice, const RHIGraphicsPipelineDesc& inDesc);
     void ShutdownInternal();
+    void InitInputElements(std::vector<D3D12_INPUT_ELEMENT_DESC>& outInputElements) const;
     
     D3D12Device& m_Device;
     RHIGraphicsPipelineDesc m_Desc;
@@ -138,29 +127,45 @@ private:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
-/// D3D12MeshPipeline
+/// D3D12FrameBuffer
 ///////////////////////////////////////////////////////////////////////////////////
-class D3D12MeshPipeline : public RHIMeshPipeline
+class D3D12FrameBuffer : public RHIFrameBuffer
 {
 public:
-    ~D3D12MeshPipeline() override;
+    ~D3D12FrameBuffer() override;
     bool Init() override;
     void Shutdown() override;
     bool IsValid() const override;
-    const RHIMeshPipelineDesc& GetDesc() const override { return m_Desc; }
-
-protected:
-    void SetNameInternal() override;
-
+    const RHIFrameBufferDesc& GetDesc() const override { return m_Desc; }
+    uint32_t GetFrameBufferWidth() const override { return m_FrameBufferWidth; }
+    uint32_t GetFrameBufferHeight() const override { return m_FrameBufferHeight; }
+    uint32_t GetNumRenderTargets() const override { return m_NumRenderTargets; }
+    const RHITexture* GetRenderTarget(uint32_t inIndex) const override { return m_Desc.RenderTargets[inIndex]; }
+    const RHITexture* GetDepthStencil() const override { return m_Desc.DepthStencil; }
+    bool HasDepthStencil() const override { return m_Desc.DepthStencil != nullptr; }
+    ERHIFormat GetRenderTargetFormat(uint32_t inIndex) const override;
+    ERHIFormat GetDepthStencilFormat() const override;
+    const D3D12_CPU_DESCRIPTOR_HANDLE* GetRenderTargetViews() const { return IsValid() ? m_RTVHandles : nullptr; }
+    const D3D12_CPU_DESCRIPTOR_HANDLE* GetDepthStencilViews() const { return HasDepthStencil() ? &m_DSVHandle : nullptr; }
+    D3D12_CPU_DESCRIPTOR_HANDLE GetRenderTargetView(uint32_t inIndex) const { return m_RTVHandles[inIndex]; }
+    D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const { return m_DSVHandle; }
+    
 private:
     friend D3D12Device;
-    D3D12MeshPipeline(D3D12Device& inDevice, const RHIMeshPipelineDesc& inDesc);
+    D3D12FrameBuffer(D3D12Device& inDevice, const RHIFrameBufferDesc& inDesc);
     void ShutdownInternal();
-    
+
     D3D12Device& m_Device;
-    RHIMeshPipelineDesc m_Desc;
-    Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PipelineState;
+    RHIFrameBufferDesc m_Desc;
+    uint32_t m_FrameBufferWidth;
+    uint32_t m_FrameBufferHeight;
+    D3D12Texture* m_RenderTargets[RHIRenderTargetsMaxCount];
+    D3D12Texture* m_DepthStencil;
+    uint32_t m_NumRenderTargets;
+    D3D12_CPU_DESCRIPTOR_HANDLE m_RTVHandles[RHIRenderTargetsMaxCount];
+    D3D12_CPU_DESCRIPTOR_HANDLE m_DSVHandle;
 };
+
 
 ///////////////////////////////////////////////////////////////////////////////////
 /// D3D12RayTracingPipeline

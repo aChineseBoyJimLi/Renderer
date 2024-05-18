@@ -488,11 +488,11 @@ bool VulkanDevice::IsValid() const
     return valid;
 }
 
-void VulkanDevice::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCommandList, const std::shared_ptr<RHIFence>& inSignalFence,
-                            const std::vector<std::shared_ptr<RHISemaphore>>* inWaitForSemaphores, 
-                            const std::vector<std::shared_ptr<RHISemaphore>>* inSignalSemaphores)
+void VulkanDevice::ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence,
+                            const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores, 
+                            const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores)
 {
-    VulkanCommandList* commandList = CheckCast<VulkanCommandList*>(inCommandList.get());
+    VulkanCommandList* commandList = CheckCast<VulkanCommandList*>(inCommandList.GetReference());
     
     if(commandList && commandList->IsValid())
     {
@@ -514,7 +514,7 @@ void VulkanDevice::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inC
         {
             for(const auto& waitSemaphore : *inWaitForSemaphores)
             {
-                const VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(waitSemaphore.get());
+                const VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(waitSemaphore.GetReference());
                 if(vulkanSemaphore && vulkanSemaphore->IsValid())
                 {
                     waitSemaphores.push_back(vulkanSemaphore->GetSemaphore());
@@ -535,7 +535,7 @@ void VulkanDevice::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inC
         {
             for(const auto& signalSemaphore : *inSignalSemaphores)
             {
-                const VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(signalSemaphore.get());
+                const VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(signalSemaphore.GetReference());
                 if(vulkanSemaphore && vulkanSemaphore->IsValid())
                 {
                     signalSemaphores.push_back(vulkanSemaphore->GetSemaphore());
@@ -552,7 +552,7 @@ void VulkanDevice::ExecuteCommandList(const std::shared_ptr<RHICommandList>& inC
         if(inSignalFence != nullptr && inSignalFence->IsValid())
         {
             inSignalFence->Reset();
-            const VkFence fence = CheckCast<VulkanFence*>(inSignalFence.get())->GetFence();
+            const VkFence fence = CheckCast<VulkanFence*>(inSignalFence.GetReference())->GetFence();
             vkQueueSubmit(queue, 1, &submitInfo, fence);
         }
         else
@@ -580,9 +580,9 @@ void VulkanDevice::SetDebugName(VkObjectType objectType, uint64_t objectHandle, 
     }
 }
     
-std::shared_ptr<RHIFence> VulkanDevice::CreateRhiFence()
+RefCountPtr<RHIFence> VulkanDevice::CreateRhiFence()
 {
-    std::shared_ptr<RHIFence> fence(new VulkanFence(*this));
+    RefCountPtr<RHIFence> fence(new VulkanFence(*this));
     if(!fence->Init())
     {
         Log::Error("[Vulkan] Failed to create fence");
@@ -669,9 +669,9 @@ void VulkanFence::SetNameInternal()
     }
 }
 
-std::shared_ptr<RHISemaphore> VulkanDevice::CreateRhiSemaphore()
+RefCountPtr<RHISemaphore> VulkanDevice::CreateRhiSemaphore()
 {
-    std::shared_ptr<RHISemaphore> semaphore(new VulkanSemaphore(*this));
+    RefCountPtr<RHISemaphore> semaphore(new VulkanSemaphore(*this));
     if(!semaphore->Init())
     {
         Log::Error("[Vulkan] Failed to create semaphore");
@@ -679,9 +679,9 @@ std::shared_ptr<RHISemaphore> VulkanDevice::CreateRhiSemaphore()
     return semaphore;
 }
 
-std::shared_ptr<VulkanSemaphore> VulkanDevice::CreateVulkanSemaphore()
+RefCountPtr<VulkanSemaphore> VulkanDevice::CreateVulkanSemaphore()
 {
-    std::shared_ptr<VulkanSemaphore> semaphore(new VulkanSemaphore(*this));
+    RefCountPtr<VulkanSemaphore> semaphore(new VulkanSemaphore(*this));
     if(!semaphore->Init())
     {
         Log::Error("[Vulkan] Failed to create semaphore");

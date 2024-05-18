@@ -3,10 +3,11 @@
 #include "VulkanDefinitions.h"
 #include "../RHIPipelineState.h"
 
+class VulkanTexture;
+
 ///////////////////////////////////////////////////////////////////////////////////
 /// VulkanPipelineBindingLayout
 ///////////////////////////////////////////////////////////////////////////////////
-
 class VulkanPipelineBindingLayout : public RHIPipelineBindingLayout
 {
 public:
@@ -68,7 +69,6 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////
 /// VulkanComputePipeline
 ///////////////////////////////////////////////////////////////////////////////////
-
 class VulkanComputePipeline : public RHIComputePipeline
 {
 public:
@@ -95,19 +95,6 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////
 /// VulkanGraphicsPipeline
 ///////////////////////////////////////////////////////////////////////////////////
-class VulkanVertexInputLayout : public RHIVertexInputLayout
-{
-public:
-    const RHIVertexInputLayoutDesc& GetDesc() const override { return m_Desc; }
-    const VkVertexInputAttributeDescription* GetAttributes() const { return m_Attributes.data(); }
-    uint32_t GetAttributeCount() const { return static_cast<uint32_t>(m_Attributes.size()); }
-    
-private:
-    VulkanVertexInputLayout(const RHIVertexInputLayoutDesc& inDesc);
-    RHIVertexInputLayoutDesc m_Desc;
-    std::vector<VkVertexInputAttributeDescription> m_Attributes;
-};
-
 class VulkanGraphicsPipeline : public RHIGraphicsPipeline
 {
 public:
@@ -116,6 +103,8 @@ public:
     void Shutdown() override;
     bool IsValid() const override;
     const RHIGraphicsPipelineDesc& GetDesc() const override { return m_Desc; }
+    VkPipeline GetPipeline() const { return m_PipelineState; }
+    VkRenderPass GetRenderPass() const { return m_RenderPass; }
         
 protected:
     void SetNameInternal() override;
@@ -124,6 +113,8 @@ private:
     friend VulkanDevice;
     VulkanGraphicsPipeline(VulkanDevice& inDevice, const RHIGraphicsPipelineDesc& inDesc);
     void ShutdownInternal();
+    uint32_t InitVertexInputAttributes(std::vector<VkVertexInputAttributeDescription>& outAttributes) const;
+    bool InitRenderPass();
     
     VulkanDevice& m_Device;
     RHIGraphicsPipelineDesc m_Desc;
@@ -133,36 +124,54 @@ private:
     VkShaderModule  m_GeometryShaderModule;
     VkShaderModule  m_TessControlShaderModule;
     VkShaderModule  m_TessEvalShaderModule;
+    VkShaderModule m_TaskShaderModule;
+    VkShaderModule m_MeshShaderModule;
+    VkRenderPass    m_RenderPass;
     VkPipeline      m_PipelineState;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
-/// VulkanMeshPipeline
+/// VulkanFrameBuffer
 ///////////////////////////////////////////////////////////////////////////////////
-class VulkanMeshPipeline : public RHIMeshPipeline
+class VulkanFrameBuffer : public RHIFrameBuffer
 {
 public:
-    ~VulkanMeshPipeline() override;
+    ~VulkanFrameBuffer() override;
     bool Init() override;
     void Shutdown() override;
     bool IsValid() const override;
-    const RHIMeshPipelineDesc& GetDesc() const override { return m_Desc; }
+    const RHIFrameBufferDesc& GetDesc() const override { return m_Desc; }
+    uint32_t GetFrameBufferWidth() const override { return m_FrameBufferWidth; }
+    uint32_t GetFrameBufferHeight() const override { return m_FrameBufferHeight; }
+    uint32_t GetNumRenderTargets() const override { return m_NumRenderTargets; }
+    const RHITexture* GetRenderTarget(uint32_t inIndex) const override { return m_Desc.RenderTargets[inIndex]; }
+    const RHITexture* GetDepthStencil() const override { return m_Desc.DepthStencil; }
+    bool HasDepthStencil() const override { return m_Desc.DepthStencil != nullptr; }
+    ERHIFormat GetRenderTargetFormat(uint32_t inIndex) const override;
+    ERHIFormat GetDepthStencilFormat() const override;
+    
+    VkFramebuffer GetFrameBuffer() const { return m_FrameBufferHandle; }
     
 protected:
     void SetNameInternal() override;
-    
+
 private:
     friend VulkanDevice;
-    VulkanMeshPipeline(VulkanDevice& inDevice, const RHIMeshPipelineDesc& inDesc);
+    VulkanFrameBuffer(VulkanDevice& inDevice, const RHIFrameBufferDesc& inDesc);
     void ShutdownInternal();
-
-    std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
     VulkanDevice& m_Device;
-    RHIMeshPipelineDesc m_Desc;
-    VkShaderModule m_TaskShaderModule;
-    VkShaderModule m_MeshShaderModule;
-    VkShaderModule m_FragmentShaderModule;
-    VkPipeline m_PipelineState;
+    RHIFrameBufferDesc m_Desc;
+    
+    VulkanTexture* m_RenderTargets[RHIRenderTargetsMaxCount];
+    VulkanTexture* m_DepthStencil;
+    uint32_t m_AttachmentCount;
+    uint32_t m_FrameBufferWidth;
+    uint32_t m_FrameBufferHeight;
+    uint32_t m_NumRenderTargets;
+    VkFramebuffer m_FrameBufferHandle;
+
+    VkImageView m_RTVHandles[RHIRenderTargetsMaxCount];
+    VkImageView m_DSVHandle;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////

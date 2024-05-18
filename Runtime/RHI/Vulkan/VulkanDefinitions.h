@@ -32,7 +32,7 @@ namespace RHI::Vulkan
     VkAccessFlags           ConvertAccessFlags(ERHIResourceStates inState);
     VkImageLayout           ConvertImageLayout(ERHIResourceStates inState);
     bool                    CreateShaderShage(VkDevice inDevice
-                                , const std::shared_ptr<RHIShader>& inShader
+                                , const RHIShader* inShader
                                 , VkShaderStageFlagBits inShaderType
                                 , VkShaderModule& outShaderModule
                                 , VkPipelineShaderStageCreateInfo& outShaderStage);

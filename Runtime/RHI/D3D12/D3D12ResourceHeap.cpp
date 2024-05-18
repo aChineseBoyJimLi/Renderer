@@ -3,9 +3,9 @@
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-std::shared_ptr<RHIResourceHeap> D3D12Device::CreateResourceHeap(const RHIResourceHeapDesc& inDesc)
+RefCountPtr<RHIResourceHeap> D3D12Device::CreateResourceHeap(const RHIResourceHeapDesc& inDesc)
 {
-    std::shared_ptr<RHIResourceHeap> heap(new D3D12ResourceHeap(*this, inDesc));
+    RefCountPtr<RHIResourceHeap> heap(new D3D12ResourceHeap(*this, inDesc));
     if(!heap->Init())
     {
         Log::Error("[D3D12] Failed to create resource heap");

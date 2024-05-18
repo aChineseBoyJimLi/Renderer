@@ -3,9 +3,9 @@
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
-std::shared_ptr<RHIShader> D3D12Device::CreateShader(ERHIShaderType inType)
+RefCountPtr<RHIShader> D3D12Device::CreateShader(ERHIShaderType inType)
 {
-    std::shared_ptr<RHIShader> shader(new D3D12Shader(inType));
+    RefCountPtr<RHIShader> shader(new D3D12Shader(inType));
     if(!shader->Init())
     {
         Log::Error("[D3D12] Failed to create shader");
@@ -20,9 +20,9 @@ void D3D12Shader::SetByteCode(std::shared_ptr<Blob> inByteCode)
     m_ShaderByteCodeD3D.BytecodeLength = m_ShaderBlob->GetSize();
 }
 
-std::shared_ptr<RHIComputePipeline> D3D12Device::CreateComputePipeline(const RHIComputePipelineDesc& inDesc)
+RefCountPtr<RHIComputePipeline> D3D12Device::CreatePipeline(const RHIComputePipelineDesc& inDesc)
 {
-    std::shared_ptr<RHIComputePipeline> pipeline(new D3D12ComputePipeline(*this, inDesc));
+    RefCountPtr<RHIComputePipeline> pipeline(new D3D12ComputePipeline(*this, inDesc));
     if(!pipeline->Init())
     {
         Log::Error("[D3D12] Failed to create compute pipeline");
@@ -55,7 +55,7 @@ bool D3D12ComputePipeline::Init()
         return false;
     }
 
-    D3D12PipelineBindingLayout* bindingLayout = CheckCast<D3D12PipelineBindingLayout*>(m_Desc.BindingLayout.get());
+    D3D12PipelineBindingLayout* bindingLayout = CheckCast<D3D12PipelineBindingLayout*>(m_Desc.BindingLayout);
     if(bindingLayout == nullptr || !bindingLayout->IsValid())
     {
         Log::Error("[D3D12] The compute pipeline binding layout is invalid");

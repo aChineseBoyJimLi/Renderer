@@ -2,6 +2,7 @@
 #include "../RHIDevice.h"
 #include "D3D12Definitions.h"
 
+class D3D12Buffer;
 class D3D12Texture;
 class D3D12DescriptorManager;
 class D3D12Fence : public RHIFence
@@ -62,20 +63,24 @@ public:
     void Shutdown() override;
     bool IsValid() const override;
     
-    std::shared_ptr<RHIFence>       CreateRhiFence() override;
-    std::shared_ptr<RHISemaphore>   CreateRhiSemaphore() override;
-    std::shared_ptr<RHICommandList> CreateCommandList(ERHICommandQueueType inType = ERHICommandQueueType::Direct) override;
-    std::shared_ptr<RHIPipelineBindingLayout> CreatePipelineBindingLayout(const RHIPipelineBindingLayoutDesc& inBindingItems) override;
-    std::shared_ptr<RHIShader> CreateShader(ERHIShaderType inType) override;
-    std::shared_ptr<RHIComputePipeline> CreateComputePipeline(const RHIComputePipelineDesc& inDesc) override;
-    std::shared_ptr<RHIResourceHeap> CreateResourceHeap(const RHIResourceHeapDesc& inDesc) override;
-    std::shared_ptr<RHIBuffer> CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual = false) override;
-    std::shared_ptr<RHITexture> CreateTexture(const RHITextureDesc& inDesc, bool isVirtual = false) override;
-    std::shared_ptr<D3D12Texture> CreateTexture(const RHITextureDesc& inDesc, const Microsoft::WRL::ComPtr<ID3D12Resource>& inResource);
-    std::shared_ptr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) override;
-    void ExecuteCommandList(const std::shared_ptr<RHICommandList>& inCommandList, const std::shared_ptr<RHIFence>& inSignalFence = nullptr,
-                            const std::vector<std::shared_ptr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
-                            const std::vector<std::shared_ptr<RHISemaphore>>* inSignalSemaphores = nullptr) override;
+    RefCountPtr<RHIFence>       CreateRhiFence() override;
+    RefCountPtr<D3D12Fence>     CreateD3D12Fence();
+    RefCountPtr<RHISemaphore>   CreateRhiSemaphore() override;
+    RefCountPtr<RHICommandList> CreateCommandList(ERHICommandQueueType inType = ERHICommandQueueType::Direct) override;
+    RefCountPtr<RHIPipelineBindingLayout> CreatePipelineBindingLayout(const RHIPipelineBindingLayoutDesc& inBindingItems) override;
+    RefCountPtr<RHIShader> CreateShader(ERHIShaderType inType) override;
+    RefCountPtr<RHIComputePipeline> CreatePipeline(const RHIComputePipelineDesc& inDesc) override;
+    RefCountPtr<RHIGraphicsPipeline> CreatePipeline(const RHIGraphicsPipelineDesc& inDesc) override;
+    RefCountPtr<RHIResourceHeap> CreateResourceHeap(const RHIResourceHeapDesc& inDesc) override;
+    RefCountPtr<RHIBuffer> CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual = false) override;
+    RefCountPtr<D3D12Buffer> CreateD3D12Buffer(const RHIBufferDesc& inDesc);
+    RefCountPtr<RHITexture> CreateTexture(const RHITextureDesc& inDesc, bool isVirtual = false) override;
+    RefCountPtr<D3D12Texture> CreateTexture(const RHITextureDesc& inDesc, const Microsoft::WRL::ComPtr<ID3D12Resource>& inResource);
+    RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) override;
+    void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr,
+                            const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
+                            const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores = nullptr) override;
+    void FlushDirectCommandQueue();
     
     ERHIBackend GetBackend() const override { return ERHIBackend::D3D12; }
     IDXGIFactory2* GetFactory() const { return m_FactoryHandle.Get(); }

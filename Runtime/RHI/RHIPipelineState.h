@@ -3,7 +3,7 @@
 #include "RHIDefinitions.h"
 #include "../Core/Blob.h"
 
-class RHIFrameBuffer;
+class RHITexture;
 
 ///////////////////////////////////////////////////////////////////////////////////
 /// RHIShader
@@ -59,48 +59,12 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
-/// RHIVertexInputLayout
-///////////////////////////////////////////////////////////////////////////////////
-struct RHIVertexInputItem
-{
-    const char* SemanticName = nullptr;
-    uint32_t SemanticIndex = 0;
-    ERHIFormat Format = ERHIFormat::Unknown;
-    // uint32_t AlignedByteOffset;
-
-    RHIVertexInputItem(const char* SemanticName, uint32_t SemanticIndex, ERHIFormat Format)
-        : SemanticName(SemanticName), SemanticIndex(SemanticIndex), Format(Format) {}
-
-    bool operator ==(const RHIVertexInputItem& b) const {
-        return SemanticName == b.SemanticName
-            && SemanticIndex == b.SemanticIndex
-            && Format == b.Format;
-            // && AlignedByteOffset == b.AlignedByteOffset;
-    }
-
-    bool operator !=(const RHIVertexInputItem& b) const { return !(*this == b); }
-};
-
-struct RHIVertexInputLayoutDesc
-{
-    std::vector<RHIVertexInputItem> Items;
-};
-
-class RHIVertexInputLayout
-{
-public:
-    virtual ~RHIVertexInputLayout() = default;
-    // virtual void SetVertexInputLayoutDesc(const RHIVertexInputLayoutDesc& inDesc) = 0;
-    virtual const RHIVertexInputLayoutDesc& GetDesc() const = 0;
-};
-
-///////////////////////////////////////////////////////////////////////////////////
 /// RHIComputePipeline
 ///////////////////////////////////////////////////////////////////////////////////
 struct RHIComputePipelineDesc
 {
-    std::shared_ptr<RHIShader> ComputeShader;
-    std::shared_ptr<RHIPipelineBindingLayout> BindingLayout;
+    RHIShader* ComputeShader = nullptr;
+    RHIPipelineBindingLayout* BindingLayout = nullptr;
 };
 
 class RHIComputePipeline : public RHIObject
@@ -112,6 +76,31 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////
 /// RHIGraphicsPipeline
 ///////////////////////////////////////////////////////////////////////////////////
+struct RHIVertexInputItem
+{
+    const char* SemanticName = nullptr;
+    uint32_t SemanticIndex = 0;
+    ERHIFormat Format = ERHIFormat::Unknown;
+    // uint32_t AlignedByteOffset;
+
+    RHIVertexInputItem(const char* SemanticName, ERHIFormat Format, uint32_t SemanticIndex = 0)
+        : SemanticName(SemanticName), SemanticIndex(SemanticIndex), Format(Format) {}
+
+    bool operator ==(const RHIVertexInputItem& b) const {
+        return SemanticName == b.SemanticName
+            && SemanticIndex == b.SemanticIndex
+            && Format == b.Format;
+        // && AlignedByteOffset == b.AlignedByteOffset;
+    }
+
+    bool operator !=(const RHIVertexInputItem& b) const { return !(*this == b); }
+};
+
+struct RHIVertexInputLayoutDesc
+{
+    std::vector<RHIVertexInputItem> Items;
+};
+
 struct RHIRasterizerDesc
 {
     ERHIRasterFillMode FillMode = ERHIRasterFillMode::Solid;
@@ -199,25 +188,30 @@ struct RHIBlendStateDesc
             return !(*this == Other);
         }
     };
-    uint32_t RenderTargetCount = 1;
+    uint32_t NumRenderTarget = 1;
     RenderTarget Targets[RHIRenderTargetsMaxCount];
     bool AlphaToCoverageEnable = true;
 };
 
 struct RHIGraphicsPipelineDesc
 {
-    std::shared_ptr<RHIShader> VertexShader;
-    std::shared_ptr<RHIShader> HullShader;
-    std::shared_ptr<RHIShader> DomainShader;
-    std::shared_ptr<RHIShader> GeometryShader;
-    std::shared_ptr<RHIShader> PixelShader;
-    std::shared_ptr<RHIPipelineBindingLayout> BindingLayout;
-    std::shared_ptr<RHIVertexInputLayout> VertexInputLayout;
-    std::shared_ptr<RHIFrameBuffer> FrameBuffer;
+    bool UsingMeshShader = false;
+    RHIShader* VertexShader = nullptr;
+    RHIShader* HullShader = nullptr;
+    RHIShader* DomainShader = nullptr;
+    RHIShader* GeometryShader = nullptr;
+    RHIShader* PixelShader = nullptr;
+    RHIShader* AmplificationShader = nullptr;
+    RHIShader* MeshShader = nullptr;
+    RHIPipelineBindingLayout* BindingLayout = nullptr;
+    RHIVertexInputLayoutDesc* VertexInputLayout = nullptr;
     ERHIPrimitiveType PrimitiveType = ERHIPrimitiveType::TriangleList;
     RHIRasterizerDesc RasterizerState;
     RHIDepthStencilDesc DepthStencilState;
     RHIBlendStateDesc BlendState;
+    ERHIFormat RTVFormats[RHIRenderTargetsMaxCount];
+    ERHIFormat DSVFormat;
+    uint32_t NumRenderTarget = 1;
     uint32_t SampleCount = 1;
     uint32_t SampleQuality = 0;
 };
@@ -229,27 +223,28 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
-/// RHIMeshPipeline
+/// RHIFrameBuffer
 ///////////////////////////////////////////////////////////////////////////////////
-struct RHIMeshPipelineDesc
+struct RHIFrameBufferDesc
 {
-    std::shared_ptr<RHIShader> AmplificationShader;
-    std::shared_ptr<RHIShader> MeshShader;
-    std::shared_ptr<RHIShader> PixelShader;
-    std::shared_ptr<RHIPipelineBindingLayout> BindingLayout;
-    std::shared_ptr<RHIFrameBuffer> FrameBuffer;
-    ERHIPrimitiveType PrimitiveType = ERHIPrimitiveType::TriangleList;
-    RHIRasterizerDesc RasterizerState;
-    RHIDepthStencilDesc DepthStencilState;
-    RHIBlendStateDesc BlendState;
-    uint32_t SampleCount = 1;
-    uint32_t SampleQuality = 0;
+    // uint32_t NumRenderTargets = 0;
+    RHITexture* RenderTargets[RHIRenderTargetsMaxCount];
+    RHITexture* DepthStencil;
+    RHIGraphicsPipeline* PipelineState;
 };
 
-class RHIMeshPipeline : public RHIObject
+class RHIFrameBuffer : public RHIObject
 {
 public:
-    virtual const RHIMeshPipelineDesc& GetDesc() const = 0;
+    virtual uint32_t GetFrameBufferWidth() const = 0;
+    virtual uint32_t GetFrameBufferHeight() const = 0;
+    virtual ERHIFormat GetRenderTargetFormat(uint32_t inIndex) const = 0;
+    virtual ERHIFormat GetDepthStencilFormat() const = 0;
+    virtual const RHITexture* GetRenderTarget(uint32_t inIndex) const = 0;
+    virtual const RHITexture* GetDepthStencil() const = 0;
+    virtual const RHIFrameBufferDesc& GetDesc() const = 0;
+    virtual uint32_t GetNumRenderTargets() const = 0;
+    virtual bool HasDepthStencil() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -257,22 +252,22 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////
 struct RHIRayGenShaderGroup
 {
-    std::shared_ptr<RHIShader> RayGenShader;
-    std::shared_ptr<RHIPipelineBindingLayout> LocalBindingLayout;
+    RHIShader* RayGenShader = nullptr;
+    RHIPipelineBindingLayout* LocalBindingLayout = nullptr;
 };
 
 struct RHIMissShaderGroup
 {
-    std::shared_ptr<RHIShader> MissShader;
-    std::shared_ptr<RHIPipelineBindingLayout> LocalBindingLayout;
+    RHIShader* MissShader = nullptr;
+    RHIPipelineBindingLayout* LocalBindingLayout = nullptr; 
 };
 
 struct RHIHitGroup
 {
-    std::shared_ptr<RHIShader> ClosestHitShader;
-    std::shared_ptr<RHIShader> AnyHitShader;
-    std::shared_ptr<RHIShader> IntersectionShader;
-    std::shared_ptr<RHIPipelineBindingLayout> LocalBindingLayout;
+    RHIShader* ClosestHitShader = nullptr;
+    RHIShader* AnyHitShader = nullptr;
+    RHIShader* IntersectionShader = nullptr;
+    RHIPipelineBindingLayout* LocalBindingLayout = nullptr;
     bool isProceduralPrimitive = false;
 };
 
@@ -298,7 +293,7 @@ struct RHIRayTracingPipelineDesc
     RHIRayGenShaderGroup RayGenShaderGroup;
     std::vector<RHIMissShaderGroup> MissShaderGroups;
     std::vector<RHIHitGroup> HitGroups;
-    std::shared_ptr<RHIPipelineBindingLayout> GlobalBindingLayout;
+    RHIPipelineBindingLayout* GlobalBindingLayout = nullptr;
     uint32_t MaxPayloadSize = 0;
     uint32_t MaxAttributeSize = sizeof(float) * 2; // typical case: float2 uv;
     uint32_t MaxRecursionDepth = 1;
