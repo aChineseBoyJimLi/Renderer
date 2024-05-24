@@ -77,6 +77,7 @@ public:
     void Shutdown() override;
     bool IsValid() const override;
     const RHIComputePipelineDesc& GetDesc() const override { return m_Desc; }
+    VkPipeline GetPipeline() const { return m_PipelineState; }
     
 protected:
     void SetNameInternal() override;
@@ -181,20 +182,20 @@ class VulkanShaderTable : public RHIShaderTable
 {
 public:
     ~VulkanShaderTable() override;
-    const ShaderTableEntry& GetRayGenShaderEntry() const { return m_RayGenerationShaderRecord; }
-    const ShaderTableEntry& GetMissShaderEntry() const { return m_MissShaderRecord; }
-    const ShaderTableEntry& GetHitGroupEntry() const { return m_HitGroupRecord; }
-    const ShaderTableEntry& GetCallableShaderEntry() const { return m_CallableShaderRecord; }
+    const RHIShaderTableEntry& GetRayGenShaderEntry() const { return m_RayGenerationShaderRecord; }
+    const RHIShaderTableEntry& GetMissShaderEntry() const { return m_MissShaderRecord; }
+    const RHIShaderTableEntry& GetHitGroupEntry() const { return m_HitGroupRecord; }
+    const RHIShaderTableEntry& GetCallableShaderEntry() const { return m_CallableShaderRecord; }
     
 private:
     friend class D3D12RayTracingPipeline;
     VkBuffer                                            m_ShaderTableBuffer;
     VkDeviceMemory                                      m_ShaderTableBufferMemory;
     
-    ShaderTableEntry                                    m_RayGenerationShaderRecord;
-    ShaderTableEntry                                    m_MissShaderRecord;
-    ShaderTableEntry                                    m_HitGroupRecord;
-    ShaderTableEntry                                    m_CallableShaderRecord;
+    RHIShaderTableEntry                                    m_RayGenerationShaderRecord;
+    RHIShaderTableEntry                                    m_MissShaderRecord;
+    RHIShaderTableEntry                                    m_HitGroupRecord;
+    RHIShaderTableEntry                                    m_CallableShaderRecord;
 };
 
 class VulkanRayTracingPipeline : public RHIRayTracingPipeline

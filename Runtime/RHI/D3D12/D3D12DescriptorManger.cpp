@@ -131,6 +131,8 @@ void D3D12DescriptorManager::Shutdown()
         delete i;
     }
     m_ManagedDescriptorHeaps.clear();
+    delete m_ShaderVisibleHeap;
+    delete m_ShaderVisibleSamplersHeap;
 }
 
 const D3D12DescriptorHeap* D3D12DescriptorManager::Allocate(D3D12_DESCRIPTOR_HEAP_TYPE inType, uint32_t inNumDescriptors, uint32_t& outSlot)
@@ -164,6 +166,26 @@ const D3D12DescriptorHeap* D3D12DescriptorManager::Allocate(D3D12_DESCRIPTOR_HEA
     return nullptr;
 }
 
+const D3D12DescriptorHeap* D3D12DescriptorManager::AllocateShaderVisibleDescriptors(uint32_t inNumDescriptors, uint32_t& outSlot)
+{
+    if(m_ShaderVisibleHeap->TryAllocate(inNumDescriptors, outSlot))
+    {
+        return m_ShaderVisibleHeap;
+    }
+    outSlot = UINT_MAX;
+    return nullptr;
+}
+
+const D3D12DescriptorHeap* D3D12DescriptorManager::AllocateShaderVisibleSamplers(uint32_t inNumDescriptors, uint32_t& outSlot)
+{
+    if(m_ShaderVisibleSamplersHeap->TryAllocate(inNumDescriptors, outSlot))
+    {
+        return m_ShaderVisibleSamplersHeap;
+    }
+    outSlot = UINT_MAX;
+    return nullptr;
+}
+
 void D3D12DescriptorManager::Free(const D3D12DescriptorHeap* inHeap, uint32_t inSlot, uint32_t inNumDescriptors)
 {
     // It's inefficient when we have a large number of descriptor heaps
@@ -174,5 +196,39 @@ void D3D12DescriptorManager::Free(const D3D12DescriptorHeap* inHeap, uint32_t in
             i->Free(inSlot, inNumDescriptors);
             return;
         }
+    }
+}
+
+void D3D12DescriptorManager::CopyDescriptors(const D3D12DescriptorHeap* inHeap, uint32_t inNumDescriptors, uint32_t inDestSlot, const D3D12_CPU_DESCRIPTOR_HANDLE& srcDescriptorRangeStart)
+{
+    if(inHeap == m_ShaderVisibleHeap)
+    {
+        m_ShaderVisibleHeap->CopyDescriptors(inNumDescriptors, inDestSlot, srcDescriptorRangeStart);
+        return;
+    }
+
+    if(inHeap == m_ShaderVisibleSamplersHeap)
+    {
+        m_ShaderVisibleSamplersHeap->CopyDescriptors(inNumDescriptors, inDestSlot, srcDescriptorRangeStart);
+        return;
+    }
+    
+    // It's inefficient when we have a large number of descriptor heaps
+    for(auto i : m_ManagedDescriptorHeaps)
+    {
+        if (i == inHeap)
+        {
+            i->CopyDescriptors(inNumDescriptors, inDestSlot, srcDescriptorRangeStart);
+            return;
+        }
+    }
+}
+
+void D3D12DescriptorManager::BindShaderVisibleHeaps(ID3D12GraphicsCommandList* inCmdList) const
+{
+    if(IsValid())
+    {
+        ID3D12DescriptorHeap* descriptorHeaps[] = { m_ShaderVisibleHeap->GetHeap(), m_ShaderVisibleSamplersHeap->GetHeap() };
+        inCmdList->SetDescriptorHeaps(2, descriptorHeaps);
     }
 }

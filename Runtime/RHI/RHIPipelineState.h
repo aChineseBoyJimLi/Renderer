@@ -45,6 +45,24 @@ struct RHIPipelineBindingItem
     bool operator !=(const RHIPipelineBindingItem& b) const { return !(*this == b); }
 };
 
+template<>
+struct std::hash<RHIPipelineBindingItem>
+{
+    size_t operator()(const RHIPipelineBindingItem& subResource) const noexcept
+    {
+        std::hash<uint32_t> hasher32;
+
+        size_t h1 = hasher32((uint32_t)subResource.Type);
+        size_t h2 = hasher32(subResource.BaseRegister);
+        size_t h3 = hasher32(subResource.Space);
+        size_t h4 = hasher32(subResource.NumResources);
+        size_t h5 = hasher32(subResource.IsBindless);
+
+        size_t combinedHash = h1 ^ (h2 << 1) ^ (h3 << 3) ^ (h4 << 4) ^ h5 << 5;
+        return combinedHash;
+    }
+};
+
 struct RHIPipelineBindingLayoutDesc
 {
     std::vector<RHIPipelineBindingItem> Items;
@@ -271,21 +289,21 @@ struct RHIHitGroup
     bool isProceduralPrimitive = false;
 };
 
-struct ShaderTableEntry
+struct RHIShaderTableEntry
 {
     RHIResourceGpuAddress StartAddress;
     uint64_t SizeInBytes;
     uint64_t StrideInBytes;
 };
 
-class RHIShaderTable
+class RHIShaderTable : public RefCounter
 {
 public:
     virtual ~RHIShaderTable() = default;
-    virtual const ShaderTableEntry& GetRayGenShaderEntry() const = 0;
-    virtual const ShaderTableEntry& GetMissShaderEntry() const = 0;
-    virtual const ShaderTableEntry& GetHitGroupEntry() const = 0;
-    virtual const ShaderTableEntry& GetCallableShaderEntry() const = 0;
+    virtual const RHIShaderTableEntry& GetRayGenShaderEntry() const = 0;
+    virtual const RHIShaderTableEntry& GetMissShaderEntry() const = 0;
+    virtual const RHIShaderTableEntry& GetHitGroupEntry() const = 0;
+    virtual const RHIShaderTableEntry& GetCallableShaderEntry() const = 0;
 };
 
 struct RHIRayTracingPipelineDesc

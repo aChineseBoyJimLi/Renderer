@@ -11,7 +11,7 @@ VulkanSwapChain::VulkanSwapChain(VulkanDevice& inDevice, const RHISwapChainDesc&
     , m_SurfaceHandle(VK_NULL_HANDLE)
     , m_SwapChainHandle(VK_NULL_HANDLE)
     , m_CurrentBackBufferIndex(0)
-    , m_ImageAvailableSemaphore(nullptr)
+    , m_ImageAvailableFence(nullptr)
 {
     
 }
@@ -29,8 +29,8 @@ bool VulkanSwapChain::Init()
         return true;
     }
 
-    m_ImageAvailableSemaphore = m_Device.CreateVulkanSemaphore();
-    if(!m_ImageAvailableSemaphore->IsValid())
+    m_ImageAvailableFence = m_Device.CreateVulkanFence();
+    if(!m_ImageAvailableFence->IsValid())
     {
         return false;
     }
@@ -204,7 +204,6 @@ void VulkanSwapChain::Present()
 {
     if(IsValid())
     {
-        VkSemaphore semaphore = m_ImageAvailableSemaphore->GetSemaphore();
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         presentInfo.swapchainCount = 1;
@@ -225,7 +224,9 @@ void VulkanSwapChain::Present()
 
 void VulkanSwapChain::AcquireNextImageIndex()
 {
-    vkAcquireNextImageKHR(m_Device.GetDevice(), m_SwapChainHandle, UINT64_MAX, m_ImageAvailableSemaphore->GetSemaphore(), VK_NULL_HANDLE, &m_CurrentBackBufferIndex);
+    m_ImageAvailableFence->Reset();
+    vkAcquireNextImageKHR(m_Device.GetDevice(), m_SwapChainHandle, UINT64_MAX, VK_NULL_HANDLE, m_ImageAvailableFence->GetFence(), &m_CurrentBackBufferIndex);
+    m_ImageAvailableFence->CpuWait();
 }
 
 void VulkanSwapChain::Resize(uint32_t inWidth, uint32_t inHeight)

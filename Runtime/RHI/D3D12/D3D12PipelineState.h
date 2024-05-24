@@ -18,6 +18,7 @@ public:
     bool IsValid() const override;
     const RHIPipelineBindingLayoutDesc& GetDesc() const override { return m_Desc; }
     ID3D12RootSignature* GetRootSignature() const {return m_RootSignature.Get(); }
+    const std::vector<CD3DX12_ROOT_PARAMETER>& GetRootParameters() const { return m_RootParameters; }
 
     // The maximum size of a root signature is 64 DWORDs.
     // - Descriptor tables cost 1 DWORD each.
@@ -37,6 +38,8 @@ private:
 
     D3D12Device& m_Device;
     RHIPipelineBindingLayoutDesc m_Desc;
+    std::array<CD3DX12_DESCRIPTOR_RANGE, s_RootSignatureMaxSize> m_DescriptorRanges;
+    std::vector<CD3DX12_ROOT_PARAMETER> m_RootParameters;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignature;
 };
 
@@ -85,7 +88,8 @@ public:
     void Shutdown() override;
     bool IsValid() const override;
     const RHIComputePipelineDesc& GetDesc() const override { return m_Desc; }
-
+    ID3D12PipelineState* GetPipelineState() const { return m_PipelineState.Get(); }
+    
 protected:
     void SetNameInternal() override;
     
@@ -173,18 +177,18 @@ private:
 class D3D12ShaderTable : public RHIShaderTable
 {
 public:
-    const ShaderTableEntry& GetRayGenShaderEntry() const { return m_RayGenerationShaderRecord; }
-    const ShaderTableEntry& GetMissShaderEntry() const { return m_MissShaderRecord; }
-    const ShaderTableEntry& GetHitGroupEntry() const { return m_HitGroupRecord; }
-    const ShaderTableEntry& GetCallableShaderEntry() const { return m_CallableShaderRecord; }
+    const RHIShaderTableEntry& GetRayGenShaderEntry() const { return m_RayGenerationShaderRecord; }
+    const RHIShaderTableEntry& GetMissShaderEntry() const { return m_MissShaderRecord; }
+    const RHIShaderTableEntry& GetHitGroupEntry() const { return m_HitGroupRecord; }
+    const RHIShaderTableEntry& GetCallableShaderEntry() const { return m_CallableShaderRecord; }
     
 private:
     friend class D3D12RayTracingPipeline;
     Microsoft::WRL::ComPtr<ID3D12Resource>              m_ShaderTableBuffer;
-    ShaderTableEntry                                    m_RayGenerationShaderRecord;
-    ShaderTableEntry                                    m_MissShaderRecord;
-    ShaderTableEntry                                    m_HitGroupRecord;
-    ShaderTableEntry                                    m_CallableShaderRecord;
+    RHIShaderTableEntry                                    m_RayGenerationShaderRecord;
+    RHIShaderTableEntry                                    m_MissShaderRecord;
+    RHIShaderTableEntry                                    m_HitGroupRecord;
+    RHIShaderTableEntry                                    m_CallableShaderRecord;
 };
 
 class D3D12RayTracingPipeline : public RHIRayTracingPipeline
@@ -196,7 +200,8 @@ public:
     bool IsValid() const override;
     const RHIRayTracingPipelineDesc& GetDesc() const override { return m_Desc; }
     const RHIShaderTable& GetShaderTable() const override { return *m_ShaderTable; }
-
+    ID3D12PipelineState* GetPipelineState() const { return m_PipelineState.Get(); }
+    
 protected:
     void SetNameInternal() override;
 

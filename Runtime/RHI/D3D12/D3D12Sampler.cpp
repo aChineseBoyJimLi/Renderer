@@ -3,6 +3,16 @@
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
+RefCountPtr<RHISampler> D3D12Device::CreateSampler(const RHISamplerDesc& inDesc)
+{
+    RefCountPtr<RHISampler> sampler(new D3D12Sampler(*this, inDesc));
+    if(!sampler->Init())
+    {
+        Log::Error("[D3D12] Failed to create sampler");
+    }
+    return sampler;
+}
+
 D3D12Sampler::D3D12Sampler(D3D12Device& inDevice, const RHISamplerDesc& inDesc)
     : m_Device(inDevice)
     , m_Desc(inDesc)

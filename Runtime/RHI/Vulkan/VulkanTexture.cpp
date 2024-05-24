@@ -133,8 +133,8 @@ bool VulkanTexture::Init()
     if(!IsVirtual() && IsManaged())
     {
         RHIResourceHeapDesc heapDesc{};
-        heapDesc.Size = GetSizeInByte();
-        heapDesc.Alignment = GetAlignment();
+        heapDesc.Size = GetAllocSizeInByte();
+        heapDesc.Alignment = GetAllocAlignment();
         heapDesc.TypeFilter = GetMemTypeFilter();
         heapDesc.Usage = ERHIHeapUsage::Texture;
         heapDesc.Type = ERHIResourceHeapType::DeviceLocal;
@@ -192,7 +192,7 @@ bool VulkanTexture::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
         return false;
     }
 
-    if(!inHeap->TryAllocate(GetSizeInByte(), m_OffsetInHeap))
+    if(!inHeap->TryAllocate(GetAllocSizeInByte(), m_OffsetInHeap))
     {
         Log::Error("[Vulkan] Failed to bind texture memory, the heap size is not enough");
         return false;
@@ -202,7 +202,7 @@ bool VulkanTexture::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
     if(result != VK_SUCCESS)
     {
         OUTPUT_VULKAN_FAILED_RESULT(result)
-        inHeap->Free(m_OffsetInHeap, GetSizeInByte());
+        inHeap->Free(m_OffsetInHeap, GetAllocSizeInByte());
         m_OffsetInHeap = 0;
         return false;
     }
@@ -253,7 +253,7 @@ void VulkanTexture::ShutdownInternal()
     
     if(m_ResourceHeap != nullptr)
     {
-        m_ResourceHeap->Free(m_OffsetInHeap, GetSizeInByte());
+        m_ResourceHeap->Free(m_OffsetInHeap, GetAllocSizeInByte());
         m_ResourceHeap.SafeRelease();
         m_OffsetInHeap = 0;
     }

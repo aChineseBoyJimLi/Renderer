@@ -253,6 +253,7 @@ bool VulkanDevice::Init()
     if(m_SupportMeshShading)
     {
         vkCmdDrawMeshTasksEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksEXT>(vkGetDeviceProcAddr(m_DeviceHandle, "vkCmdDrawMeshTasksEXT"));
+        vkCmdDrawMeshTasksIndirectEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksIndirectEXT>(vkGetDeviceProcAddr(m_DeviceHandle, "vkCmdDrawMeshTasksIndirectEXT"));
     }
 
     if(m_SupportBufferDeviceAddress)
@@ -281,9 +282,13 @@ bool VulkanDevice::Init()
         deviceProperties2.pNext = &m_PhysicalDeviceShadingRateProperties;
         vkGetPhysicalDeviceProperties2(m_PhysicalDeviceHandle, &deviceProperties2);
     }
+    
 #if _DEBUG || DEBUG
     vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(m_DeviceHandle, "vkSetDebugUtilsObjectNameEXT"));
 #endif
+
+    if(!InitDescriptorPool())
+        return false;
     
     return true;
 }
@@ -451,6 +456,48 @@ void VulkanDevice::EnableDeviceExtensions(VkPhysicalDeviceFeatures2& deviceFeatu
     }
 }
 
+bool VulkanDevice::InitDescriptorPool()
+{
+    std::array<VkDescriptorPoolSize, 8> poolSizes{};
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+    poolSizes[0].descriptorCount = 512;
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    poolSizes[1].descriptorCount = 1024;
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    poolSizes[2].descriptorCount = 1024;
+    poolSizes[3].type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+    poolSizes[3].descriptorCount = 1024;
+    poolSizes[4].type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+    poolSizes[4].descriptorCount = 1024;
+    poolSizes[5].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[5].descriptorCount = 1024;
+    poolSizes[6].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    poolSizes[6].descriptorCount = 1024;
+    poolSizes[7].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+    poolSizes[7].descriptorCount = 16;
+    // poolSizes[7].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    // poolSizes[7].descriptorCount = 512;
+    // poolSizes[8].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    // poolSizes[8].descriptorCount = 512;
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = 100; 
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
+    VkResult result = vkCreateDescriptorPool(m_DeviceHandle, &poolInfo, nullptr, &m_DescriptorPoolHandle);
+
+    if(result != VK_SUCCESS)
+    {
+        Log::Error("Failed to create descriptor pool");
+        return false;
+    }
+    
+    return true;
+}
+
 void VulkanDevice::Shutdown()
 {
     ShutdownInternal();
@@ -458,6 +505,8 @@ void VulkanDevice::Shutdown()
 
 void VulkanDevice::ShutdownInternal()
 {
+    if(m_DescriptorPoolHandle != VK_NULL_HANDLE) vkDestroyDescriptorPool(m_DeviceHandle, m_DescriptorPoolHandle, nullptr);
+    
     if(m_DeviceHandle != VK_NULL_HANDLE) vkDestroyDevice(m_DeviceHandle, nullptr);
 #if _DEBUG || DEBUG
     if(m_DebugMessenger != VK_NULL_HANDLE)
@@ -467,7 +516,8 @@ void VulkanDevice::ShutdownInternal()
     }
 #endif
     if(m_InstanceHandle != VK_NULL_HANDLE) vkDestroyInstance(m_InstanceHandle, nullptr);
-    
+
+    m_DescriptorPoolHandle = VK_NULL_HANDLE;
     m_DeviceHandle = VK_NULL_HANDLE;
     m_PhysicalDeviceHandle = VK_NULL_HANDLE;
     m_DebugMessenger = VK_NULL_HANDLE;
@@ -579,10 +629,43 @@ void VulkanDevice::SetDebugName(VkObjectType objectType, uint64_t objectHandle, 
         if(result != VK_SUCCESS) Log::Warning("Failed to set name: %s on object", name.c_str());
     }
 }
+
+void VulkanDevice::BeginDebugMarker(const char* name, VkCommandBuffer cmdBuffer) const 
+{
+    if(m_SupportDebugMarker)
+    {
+        VkDebugMarkerMarkerInfoEXT markerInfo;
+        markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
+        markerInfo.pMarkerName = name;
+        markerInfo.color[0] = 1.0f;
+        markerInfo.color[1] = 1.0f;
+        markerInfo.color[2] = 1.0f;
+        markerInfo.color[3] = 1.0f;
+        vkCmdDebugMarkerBeginEXT(cmdBuffer, &markerInfo);
+    }
+}
+
+void VulkanDevice::EndDebugMarker(VkCommandBuffer cmdBuffer) const 
+{
+    if(m_SupportDebugMarker)
+    {
+        vkCmdDebugMarkerEndEXT( cmdBuffer );
+    }
+}
     
 RefCountPtr<RHIFence> VulkanDevice::CreateRhiFence()
 {
     RefCountPtr<RHIFence> fence(new VulkanFence(*this));
+    if(!fence->Init())
+    {
+        Log::Error("[Vulkan] Failed to create fence");
+    }
+    return fence;
+}
+
+RefCountPtr<VulkanFence> VulkanDevice::CreateVulkanFence()
+{
+    RefCountPtr<VulkanFence> fence(new VulkanFence(*this));
     if(!fence->Init())
     {
         Log::Error("[Vulkan] Failed to create fence");

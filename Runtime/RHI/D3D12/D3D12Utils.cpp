@@ -338,7 +338,7 @@ namespace RHI::D3D12
     void TranslateBlendState(const RHIBlendStateDesc& inState, D3D12_BLEND_DESC& outState)
     {
         outState.AlphaToCoverageEnable = inState.AlphaToCoverageEnable;
-        outState.IndependentBlendEnable = true;
+        outState.IndependentBlendEnable = false;
 
         for (uint32_t i = 0; i < inState.NumRenderTarget; i++)
         {
@@ -412,5 +412,40 @@ namespace RHI::D3D12
         outState.AntialiasedLineEnable = inState.AntialiasedLineEnable ? TRUE : FALSE;
         outState.ConservativeRaster = inState.ConservativeRasterEnable ? D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON : D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
         outState.ForcedSampleCount = inState.ForcedSampleCount;
+    }
+
+    ERHIResourceViewType ConvertRHIResourceViewType(D3D12_DESCRIPTOR_RANGE_TYPE inRangeType)
+    {
+        switch(inRangeType)
+        {
+        case D3D12_DESCRIPTOR_RANGE_TYPE_SRV:
+            return ERHIResourceViewType::SRV;
+        case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
+            return ERHIResourceViewType::CBV;
+        case D3D12_DESCRIPTOR_RANGE_TYPE_UAV:
+            return ERHIResourceViewType::UAV;
+        case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:
+            return ERHIResourceViewType::Sampler;
+        }
+        assert(!"Enclosing block should never be called");
+        return ERHIResourceViewType::SRV;
+    }
+
+    ERHIResourceViewType ConvertRHIResourceViewType(D3D12_ROOT_PARAMETER_TYPE inParameterType)
+    {
+        switch(inParameterType)
+        {
+        case D3D12_ROOT_PARAMETER_TYPE_CBV:
+        case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
+            return ERHIResourceViewType::CBV;
+        case D3D12_ROOT_PARAMETER_TYPE_SRV:
+            return ERHIResourceViewType::SRV;
+        case D3D12_ROOT_PARAMETER_TYPE_UAV:
+            return ERHIResourceViewType::UAV;
+        case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
+            assert(!"Enclosing block should never be called");
+            break;
+        }
+        return ERHIResourceViewType::SRV;    
     }
 }

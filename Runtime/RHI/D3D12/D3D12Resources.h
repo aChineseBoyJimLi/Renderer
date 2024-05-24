@@ -131,10 +131,13 @@ public:
     bool TryGetSRVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const RHIBufferSubRange& inSubResource = RHIBufferSubRange::All);
     bool TryGetUAVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const RHIBufferSubRange& inSubResource = RHIBufferSubRange::All);
     
+    D3D12_RESOURCE_STATES GetCurrentState(const RHIBufferSubRange& inSubResource = RHIBufferSubRange::All);
+    void ChangeState(D3D12_RESOURCE_STATES inAfterState, const RHIBufferSubRange& inSubResource = RHIBufferSubRange::All);
+    
     const RHIBufferDesc& GetDesc() const override { return m_Desc; }
     uint32_t GetMemTypeFilter()  const override { return UINT32_MAX; }
-    size_t GetSizeInByte() const override { return m_AllocationInfo.SizeInBytes; }
-    size_t GetAlignment() const override { return m_AllocationInfo.Alignment; }
+    size_t GetAllocSizeInByte() const override { return m_AllocationInfo.SizeInBytes; }
+    size_t GetAllocAlignment() const override { return m_AllocationInfo.Alignment; }
     ID3D12Resource* GetBuffer() const { return m_BufferHandle.Get(); }
     RHIResourceGpuAddress GetGpuAddress() const override { return IsValid() ? m_BufferHandle->GetGPUVirtualAddress() : 0; }
 
@@ -164,6 +167,7 @@ private:
     std::unordered_map<RHIBufferSubRange, D3D12ResourceView<D3D12_CONSTANT_BUFFER_VIEW_DESC>> m_ConstantBufferViews;
     std::unordered_map<RHIBufferSubRange, D3D12ResourceView<D3D12_SHADER_RESOURCE_VIEW_DESC>> m_ShaderResourceViews;
     std::unordered_map<RHIBufferSubRange, D3D12ResourceView<D3D12_UNORDERED_ACCESS_VIEW_DESC>> m_UnorderedAccessViews;
+    std::unordered_map<RHIBufferSubRange, D3D12_RESOURCE_STATES> m_SubResourceStates;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -183,8 +187,8 @@ public:
     size_t GetOffsetInHeap() const override { return m_OffsetInHeap; }
     const RHITextureDesc& GetDesc() const override { return m_Desc; }
     uint32_t GetMemTypeFilter()  const override { return UINT32_MAX; }
-    size_t GetSizeInByte() const override { return m_AllocationInfo.SizeInBytes; }
-    size_t GetAlignment() const override { return m_AllocationInfo.Alignment; }
+    size_t GetAllocSizeInByte() const override { return m_AllocationInfo.SizeInBytes; }
+    size_t GetAllocAlignment() const override { return m_AllocationInfo.Alignment; }
     ID3D12Resource* GetTexture() const { return m_TextureHandle.Get(); }
 
     bool CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const RHITextureSubResource& inSubResource = RHITextureSubResource::All);
@@ -270,18 +274,52 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////
 /// D3D12ResourceSet
 ///////////////////////////////////////////////////////////////////////////////////
+struct D3D12ResourceArgument
+{
+    ERHIResourceViewType ViewType;
+    D3D12_ROOT_PARAMETER_TYPE ParameterType;
+    uint32_t Space;
+    uint32_t BaseRegister;
+    uint32_t NumDescriptors;
+    D3D12_GPU_DESCRIPTOR_HANDLE DescriptorTableStartHandle;
+    size_t ShaderVisibleDescriptorRangeIndex;
+    RHIResourceGpuAddress GpuAddress;
+};
+
+struct ShaderVisibleDescriptorRange
+{
+    const D3D12DescriptorHeap* Heap;
+    uint32_t Slot;
+    uint32_t NumDescriptors;
+};
+
 class D3D12ResourceSet : public RHIResourceSet
 {
 public:
     ~D3D12ResourceSet() override;
+    bool Init() override;
+    void Shutdown() override;
+    bool IsValid() const override;
 
-    void BindBuffer(ERHIBindingResourceType inType, uint32_t inBaseRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void BindBufferSRV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void BindBufferUAV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void BindBufferCBV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void BindTextureSRV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) override;
+    void BindTextureUAV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) override;
+    void BindSampler(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHISampler>& inSampler) override;
+    const RHIPipelineBindingLayout* GetLayout() const override { return m_Layout; }
+    void SetGraphicsRootArguments(ID3D12GraphicsCommandList* inCmdList) const;
+    void SetComputeRootArguments(ID3D12GraphicsCommandList* inCmdList) const;
     
-    
-    // RefCountPtr<RHIPipelineBindingLayout> GetLayout() const override { return m_Layout.GetReference(); }
-
 private:
+    friend D3D12Device;
     D3D12ResourceSet(D3D12Device& inDevice, const RHIPipelineBindingLayout* inLayout);
+    void ShutdownInternal();
+    void BindResource(ERHIResourceViewType inViewType, uint32_t inRegister, uint32_t inSpace, D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle, RHIResourceGpuAddress address);
+    
     D3D12Device& m_Device;
     const RHIPipelineBindingLayout* m_Layout;
+    const D3D12PipelineBindingLayout* m_LayoutD3D;
+    std::vector<ShaderVisibleDescriptorRange> m_AllocatedDescriptorRanges;
+    std::vector<D3D12ResourceArgument> m_RootArguments;
 };

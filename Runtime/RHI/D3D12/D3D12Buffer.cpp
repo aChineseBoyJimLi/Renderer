@@ -157,7 +157,7 @@ void D3D12Buffer::ShutdownInternal()
     
     if(m_ResourceHeap != nullptr)
     {
-        m_ResourceHeap->Free(m_OffsetInHeap, GetSizeInByte());
+        m_ResourceHeap->Free(m_OffsetInHeap, GetAllocSizeInByte());
         m_ResourceHeap.SafeRelease();
         m_OffsetInHeap = 0;
     }
@@ -285,7 +285,7 @@ bool D3D12Buffer::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
         m_InitialStates = D3D12_RESOURCE_STATE_COPY_DEST;
     }
     
-    if(!inHeap->TryAllocate(GetSizeInByte(), m_OffsetInHeap))
+    if(!inHeap->TryAllocate(GetAllocSizeInByte(), m_OffsetInHeap))
     {
         Log::Error("[D3D12] Failed to bind buffer memory, the heap size is not enough");
         return false;
@@ -301,7 +301,7 @@ bool D3D12Buffer::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
     if(FAILED(hr))
     {
         OUTPUT_D3D12_FAILED_RESULT(hr)
-        inHeap->Free(m_OffsetInHeap, GetSizeInByte());
+        inHeap->Free(m_OffsetInHeap, GetAllocSizeInByte());
         m_OffsetInHeap = 0;
         return false;
     }
@@ -335,7 +335,7 @@ bool D3D12Buffer::CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const RHIBuf
     if(inSubResource == RHIBufferSubRange::All)
     {
         offset = 0;
-        size = (uint32_t)GetSizeInByte();
+        size = (uint32_t)m_Desc.Size;
     }
 
     uint32_t slot;
@@ -378,10 +378,16 @@ bool D3D12Buffer::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const RHIBuf
 
     size_t offset = inSubResource.Offset;
     uint32_t size = (uint32_t)inSubResource.Size;
+    uint32_t stride = inSubResource.StructureByteStride;
+    uint32_t firstElement = inSubResource.FirstElement;
+    uint32_t numElements = inSubResource.NumElements;
     if(inSubResource == RHIBufferSubRange::All)
     {
         offset = 0;
-        size = (uint32_t)GetSizeInByte();
+        size = (uint32_t)m_Desc.Size;
+        stride = (uint32_t)m_Desc.Stride;
+        firstElement = 0;
+        numElements = (uint32_t)(m_Desc.Size / stride);
     }
 
     uint32_t slot;
@@ -395,17 +401,23 @@ bool D3D12Buffer::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const RHIBuf
     outHandle = descriptorHeap->GetCpuSlotHandle(slot);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     if(inSubResource.StructureByteStride > 0)
     {
-        srvDesc.Buffer.StructureByteStride = inSubResource.StructureByteStride;
-        srvDesc.Buffer.FirstElement = inSubResource.FirstElement;
-        srvDesc.Buffer.NumElements = inSubResource.NumElements;
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.Buffer.StructureByteStride = stride;
+        srvDesc.Buffer.FirstElement = firstElement;
+        srvDesc.Buffer.NumElements = numElements;
     }
     else
     {
+        if(m_Desc.Format == ERHIFormat::Unknown)
+        {
+            Log::Error("[D3D12] If the stride = 0, a format must be supplied");
+            return false;
+        }
+        srvDesc.Format = RHI::D3D12::ConvertFormat(m_Desc.Format);
         srvDesc.Buffer.FirstElement = offset;
         srvDesc.Buffer.NumElements = size;
         srvDesc.Buffer.StructureByteStride = 0;
@@ -441,7 +453,7 @@ bool D3D12Buffer::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const RHIBuf
     if(inSubResource == RHIBufferSubRange::All)
     {
         offset = 0;
-        size = (uint32_t)GetSizeInByte();
+        size = (uint32_t)m_Desc.Size;
     }
 
     uint32_t slot;
@@ -455,16 +467,22 @@ bool D3D12Buffer::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const RHIBuf
     outHandle = descriptorHeap->GetCpuSlotHandle(slot);
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-    uavDesc.Format = DXGI_FORMAT_UNKNOWN;
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
     if(inSubResource.StructureByteStride > 0)
     {
+        uavDesc.Format = DXGI_FORMAT_UNKNOWN;
         uavDesc.Buffer.StructureByteStride = inSubResource.StructureByteStride;
         uavDesc.Buffer.FirstElement = inSubResource.FirstElement;
         uavDesc.Buffer.NumElements = inSubResource.NumElements;
     }
     else
     {
+        if(m_Desc.Format == ERHIFormat::Unknown)
+        {
+            Log::Error("[D3D12] If the stride = 0, a format must be supplied");
+            return false;
+        }
+        uavDesc.Format = RHI::D3D12::ConvertFormat(m_Desc.Format);
         uavDesc.Buffer.StructureByteStride = 0;
         uavDesc.Buffer.FirstElement = offset;
         uavDesc.Buffer.NumElements = size;
@@ -513,4 +531,36 @@ bool D3D12Buffer::TryGetUAVHandle(D3D12_CPU_DESCRIPTOR_HANDLE& outHandle, const 
 
     outHandle = m_UnorderedAccessViews[inSubResource].GetCpuHande();
     return true;
+}
+
+D3D12_RESOURCE_STATES D3D12Buffer::GetCurrentState(const RHIBufferSubRange& inSubResource)
+{
+    auto currentStateIter = m_SubResourceStates.find(inSubResource);
+    if(currentStateIter == m_SubResourceStates.end())
+    {
+        auto allSubResourceState = m_SubResourceStates.find(RHIBufferSubRange::All);
+        if(allSubResourceState == m_SubResourceStates.end())
+        {
+            m_SubResourceStates.emplace(inSubResource, m_InitialStates);
+            if(inSubResource != RHIBufferSubRange::All)
+                m_SubResourceStates.emplace(inSubResource, m_InitialStates);
+            return m_InitialStates;
+        }
+        m_SubResourceStates.emplace(inSubResource, allSubResourceState->second);
+        return allSubResourceState->second;
+    }
+    return currentStateIter->second;
+}
+
+void D3D12Buffer::ChangeState(D3D12_RESOURCE_STATES inAfterState, const RHIBufferSubRange& inSubResource)
+{
+    auto currentStateIter = m_SubResourceStates.find(inSubResource);
+    if(currentStateIter == m_SubResourceStates.end())
+    {
+        m_SubResourceStates.emplace(inSubResource, inAfterState);
+    }
+    else
+    {
+        currentStateIter->second = inAfterState;
+    }
 }

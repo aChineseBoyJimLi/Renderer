@@ -185,7 +185,7 @@ void D3D12Texture::ShutdownInternal()
     
     if(m_ResourceHeap != nullptr)
     {
-        m_ResourceHeap->Free(m_OffsetInHeap, GetSizeInByte());
+        m_ResourceHeap->Free(m_OffsetInHeap, GetAllocSizeInByte());
         m_ResourceHeap.SafeRelease();
         m_OffsetInHeap = 0;
     }
@@ -229,7 +229,7 @@ bool D3D12Texture::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
         return false;
     }
 
-    if(!inHeap->TryAllocate(GetSizeInByte(), m_OffsetInHeap))
+    if(!inHeap->TryAllocate(GetAllocSizeInByte(), m_OffsetInHeap))
     {
         Log::Error("[D3D12] Failed to bind texture memory, the heap size is not enough");
         return false;
@@ -263,7 +263,7 @@ bool D3D12Texture::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
     if(FAILED(hr))
     {
         OUTPUT_D3D12_FAILED_RESULT(hr)
-        inHeap->Free(m_OffsetInHeap, GetSizeInByte());
+        inHeap->Free(m_OffsetInHeap, GetAllocSizeInByte());
         m_OffsetInHeap = 0;
         return false;
     }

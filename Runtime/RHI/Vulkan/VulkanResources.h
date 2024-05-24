@@ -5,6 +5,7 @@
 #include "../../Core/FreeListAllocator.h"
 
 
+class VulkanPipelineBindingLayout;
 class VulkanDevice;
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -63,8 +64,9 @@ public:
     const RHIBufferDesc& GetDesc() const override { return m_Desc; }
     RHIResourceGpuAddress GetGpuAddress() const override;
     uint32_t GetMemTypeFilter()  const override { return m_MemRequirements.memoryTypeBits; }
-    size_t GetSizeInByte() const override { return m_MemRequirements.size; }
-    size_t GetAlignment() const override { return m_MemRequirements.alignment; }
+    size_t GetAllocSizeInByte() const override { return m_MemRequirements.size; }
+    size_t GetAllocAlignment() const override { return m_MemRequirements.alignment; }
+    VkBuffer GetBuffer() const { return m_BufferHandle; }
     
     const bool IsVirtualBuffer;
     const bool IsManagedBuffer;
@@ -119,8 +121,8 @@ public:
     const RHITextureDesc& GetDesc() const override { return m_Desc; }
     size_t GetOffsetInHeap() const override { return m_OffsetInHeap; }
     uint32_t GetMemTypeFilter()  const override { return m_MemRequirements.memoryTypeBits; }
-    size_t GetSizeInByte() const override { return m_MemRequirements.size; }
-    size_t GetAlignment() const override { return m_MemRequirements.alignment; }
+    size_t GetAllocSizeInByte() const override { return m_MemRequirements.size; }
+    size_t GetAllocAlignment() const override { return m_MemRequirements.alignment; }
     VkImage GetTextureHandle() const { return m_TextureHandle; }
     bool CreateRTV(VkImageView& outHandle, const RHITextureSubResource& inSubResource = RHITextureSubResource::All);
     bool CreateDSV(VkImageView& outHandle, const RHITextureSubResource& inSubResource = RHITextureSubResource::All);
@@ -191,3 +193,32 @@ private:
     VkSampler m_SamplerHandle;
 };
 
+///////////////////////////////////////////////////////////////////////////////////
+/// VulkanResourceSet
+///////////////////////////////////////////////////////////////////////////////////
+class VulkanResourceSet : public RHIResourceSet
+{
+public:
+    ~VulkanResourceSet() override;
+    bool Init() override;
+    void Shutdown() override;
+    bool IsValid() const override;
+
+    void BindBufferSRV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void BindBufferUAV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void BindBufferCBV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void BindTextureSRV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) override;
+    void BindTextureUAV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) override;
+    void BindSampler(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHISampler>& inSampler) override;
+    const RHIPipelineBindingLayout* GetLayout() const override { return m_Layout; }
+
+private:
+    friend VulkanDevice;
+    VulkanResourceSet(VulkanDevice& inDevice, const RHIPipelineBindingLayout* inLayout);
+    void ShutdownInternal();
+
+    VulkanDevice& m_Device;
+    const RHIPipelineBindingLayout* m_Layout;
+    const VulkanPipelineBindingLayout* m_LayoutVulkan;
+    std::vector<VkDescriptorSet> m_DescriptorSet;
+};

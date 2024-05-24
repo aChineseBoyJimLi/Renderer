@@ -76,12 +76,14 @@ public:
     RefCountPtr<D3D12Buffer> CreateD3D12Buffer(const RHIBufferDesc& inDesc);
     RefCountPtr<RHITexture> CreateTexture(const RHITextureDesc& inDesc, bool isVirtual = false) override;
     RefCountPtr<D3D12Texture> CreateTexture(const RHITextureDesc& inDesc, const Microsoft::WRL::ComPtr<ID3D12Resource>& inResource);
+    RefCountPtr<RHISampler> CreateSampler(const RHISamplerDesc& inDesc) override;
     RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) override;
+    RefCountPtr<RHIResourceSet> CreateResourceSet(const RHIPipelineBindingLayout* inLayout) override;
     void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr,
                             const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
                             const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores = nullptr) override;
-    void FlushDirectCommandQueue();
     
+    void FlushDirectCommandQueue();
     ERHIBackend GetBackend() const override { return ERHIBackend::D3D12; }
     IDXGIFactory2* GetFactory() const { return m_FactoryHandle.Get(); }
     IDXGIAdapter1* GetAdapter() const { return m_AdapterHandle.Get(); }
@@ -111,4 +113,6 @@ private:
     D3D12_FEATURE_DATA_D3D12_OPTIONS5 m_Feature5Data{}; // RayTracing, RenderPass
     D3D12_FEATURE_DATA_D3D12_OPTIONS6 m_Feature6Data{}; // VariableShadingRate
     D3D12_FEATURE_DATA_D3D12_OPTIONS7 m_Feature7Data{}; // MeshShader, SamplerFeedback
+
+    
 };

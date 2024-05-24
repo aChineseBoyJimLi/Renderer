@@ -3,7 +3,7 @@
 #include "VulkanResources.h"
 #include "../RHISwapChain.h"
 
-class VulkanSemaphore;
+class VulkanFence;
 class VulkanSwapChain : public RHISwapChain
 {
 public:
@@ -39,5 +39,5 @@ private:
     VkSwapchainKHR m_SwapChainHandle;
     std::vector<RefCountPtr<VulkanTexture>> m_BackBuffers;
     uint32_t m_CurrentBackBufferIndex;
-    RefCountPtr<VulkanSemaphore> m_ImageAvailableSemaphore;
+    RefCountPtr<VulkanFence> m_ImageAvailableFence;
 };

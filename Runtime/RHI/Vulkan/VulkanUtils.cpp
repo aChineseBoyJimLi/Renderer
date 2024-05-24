@@ -614,4 +614,20 @@ namespace RHI::Vulkan
         outState.depthClampEnable = inState.DepthClipEnable;
         outState.rasterizerDiscardEnable = false;
     }
+
+    VkImageAspectFlags GuessImageAspectFlags(ERHIFormat inFormat)
+    {
+        switch(inFormat)
+        {
+        case ERHIFormat::D16:
+        case ERHIFormat::D32:
+            return VK_IMAGE_ASPECT_DEPTH_BIT;
+        case ERHIFormat::D24S8:
+        case ERHIFormat::D32S8:
+            return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+        default:
+            return VK_IMAGE_ASPECT_COLOR_BIT;
+        }
+        return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
 }

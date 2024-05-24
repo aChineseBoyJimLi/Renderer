@@ -35,10 +35,58 @@ struct RHIBufferDesc
 {
     uint64_t Size = 0;
     uint64_t Stride = 0;
-    ERHIFormat Format = ERHIFormat::Unknown;
+    ERHIFormat Format = ERHIFormat::Unknown; 
     ERHICpuAccessMode CpuAccess = ERHICpuAccessMode::None;
-    // ERHIResourceStates InitialState = ERHIResourceStates::None;
     ERHIBufferUsage Usages = ERHIBufferUsage::None;
+
+    static RHIBufferDesc ConstantsBuffer(uint64_t inSize)
+    {
+        RHIBufferDesc desc;
+        desc.Size = inSize;
+        desc.CpuAccess = ERHICpuAccessMode::Write;
+        desc.Usages = ERHIBufferUsage::ConstantBuffer;
+        return desc;
+    }
+
+    static RHIBufferDesc StructuredBuffer(uint64_t inSize, uint64_t inStride, ERHIBufferUsage inUsage)
+    {
+        RHIBufferDesc desc;
+        desc.Size = inSize;
+        desc.Stride = inStride;
+        desc.CpuAccess = ERHICpuAccessMode::Read;
+        desc.Usages = inUsage;
+        return desc;
+    }
+
+    static RHIBufferDesc VertexBuffer(uint64_t inSize, uint64_t inStride)
+    {
+        RHIBufferDesc desc;
+        desc.Size = inSize;
+        desc.Stride = inStride;
+        desc.CpuAccess = ERHICpuAccessMode::Read;
+        desc.Usages = ERHIBufferUsage::VertexBuffer;
+        return desc;
+    }
+
+    static RHIBufferDesc IndexBuffer(uint64_t inSize, uint64_t inStride)
+    {
+        RHIBufferDesc desc;
+        desc.Size = inSize;
+        desc.Stride = inStride;
+        desc.CpuAccess = ERHICpuAccessMode::Read;
+        desc.Usages = ERHIBufferUsage::IndexBuffer;
+        return desc;
+    }
+
+    static RHIBufferDesc StagingBuffer(uint64_t inSize)
+    {
+        RHIBufferDesc desc;
+        desc.CpuAccess = ERHICpuAccessMode::Write;
+        desc.Usages = ERHIBufferUsage::None;
+        desc.Size = inSize;
+        return desc;
+    }
+
 };
 
 struct RHIBufferSubRange
@@ -96,11 +144,9 @@ public:
     virtual void  ReadData(void* outData, uint64_t inSize, uint64_t inOffset = 0) = 0;
     virtual const RHIBufferDesc& GetDesc() const = 0;
     virtual uint32_t GetMemTypeFilter() const = 0; // Using for vulkan buffer memory allocation, d3d12 return UINT32_MAX
-    virtual size_t GetSizeInByte() const = 0;
-    virtual size_t GetAlignment() const = 0;
+    virtual size_t GetAllocSizeInByte() const = 0;
+    virtual size_t GetAllocAlignment() const = 0;
     virtual RHIResourceGpuAddress GetGpuAddress() const = 0;
-    // virtual void ChangeState(const RHICommandList& inCmdList, ERHIResourceStates inState, const RHIBufferSubRange& subRange = RHIBufferSubRange::All) = 0;
-    // virtual ERHIResourceStates GetState(const RHIBufferSubRange& subRange = RHIBufferSubRange::All) const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -142,6 +188,43 @@ struct RHITextureSubResource
     }
 };
 
+// a single texture of a single mip level in texture array
+struct RHITextureSlice
+{
+    uint32_t X = 0;
+    uint32_t Y = 0;
+    uint32_t Z = 0;
+
+    uint32_t Width = UINT32_MAX;
+    uint32_t Height = UINT32_MAX;
+    uint32_t Depth = UINT32_MAX;
+
+    uint32_t MipLevel = 0;
+    uint32_t ArraySlice = 0;
+
+    RHITextureSlice() = delete;
+    
+    RHITextureSlice(const RHITextureDesc& inDesc, uint32_t inMipLevel = 0, uint32_t inArraySlice = 0)
+    {
+        assert(inArraySlice < inDesc.ArraySize);
+        assert(inMipLevel < inDesc.MipLevels);
+
+        MipLevel = inMipLevel;
+        ArraySlice = inArraySlice;
+        Width = inDesc.Width >> inMipLevel;
+        Height = inDesc.Height >> inMipLevel;
+
+        if(inDesc.Dimension == ERHITextureDimension::Texture3D)
+        {
+            Depth = inDesc.Depth >> inMipLevel;
+        }
+        else
+        {
+            Depth = 1;
+        }
+    }
+};
+
 template<>
 struct std::hash<RHITextureSubResource>
 {
@@ -168,11 +251,9 @@ public:
     virtual size_t GetOffsetInHeap() const = 0;
     virtual const RHITextureDesc& GetDesc() const = 0;
     virtual uint32_t GetMemTypeFilter() const = 0; // Using for vulkan texture memory allocation, d3d12 return UINT32_MAX
-    virtual size_t GetSizeInByte() const = 0;
-    virtual size_t GetAlignment() const = 0;
+    virtual size_t GetAllocSizeInByte() const = 0;
+    virtual size_t GetAllocAlignment() const = 0;
     virtual const RHIClearValue& GetClearValue() const = 0;
-    // virtual void ChangeState(const RHICommandList& inCmdList, ERHIResourceStates inState, const RHITextureSubResource& subResource = RHITextureSubResource::All) = 0;
-    // virtual ERHIResourceStates GetState(const RHITextureSubResource& subResource = RHITextureSubResource::All) const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -254,14 +335,12 @@ class RHIResourceSet : public RHIObject
 {
 public:
     virtual const RHIPipelineBindingLayout* GetLayout() const = 0;
-    
-    virtual void BindBuffer(ERHIBindingResourceType inType, uint32_t inBaseRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) = 0;
-    virtual void BindBuffers(ERHIBindingResourceType Type, uint32_t BaseRegister, uint32_t Space, const std::vector<RefCountPtr<RHIBuffer>>& inBuffers) = 0;
-    virtual void BindBuffer(uint32_t inIndex, const RefCountPtr<RHIBuffer>& inBuffer) = 0;
-    virtual void BindBuffers(uint32_t inIndex, const std::vector<RefCountPtr<RHIBuffer>>& inBuffers) = 0;
-    
-    virtual void BindTexture(uint32_t inIndex, const RefCountPtr<RHITexture>& inTexture) = 0;
-    virtual void BindSampler(uint32_t inIndex, const RefCountPtr<RHISampler>& inSampler) = 0;
-    virtual void BindAccelerationStructure(uint32_t inIndex, const RefCountPtr<RHIAccelerationStructure>& inAccelerationStructure) = 0;
+    virtual void BindBufferSRV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) = 0;
+    virtual void BindBufferUAV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) = 0;
+    virtual void BindBufferCBV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer) = 0;
+    virtual void BindTextureSRV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) = 0;
+    virtual void BindTextureUAV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) = 0;
+    virtual void BindSampler(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHISampler>& inSampler) = 0;
+    // virtual void BindAccelerationStructure(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIAccelerationStructure>& inAccelerationStructure) = 0;
 };
 

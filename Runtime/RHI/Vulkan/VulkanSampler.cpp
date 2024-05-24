@@ -37,6 +37,16 @@ namespace RHI::Vulkan
     }
 }
 
+RefCountPtr<RHISampler> VulkanDevice::CreateSampler(const RHISamplerDesc& inDesc)
+{
+    RefCountPtr<RHISampler> sampler(new VulkanSampler(*this, inDesc));
+    if(!sampler->Init())
+    {
+        Log::Error("[Vulkan] Failed to create sampler");
+    }
+    return sampler;
+}
+
 VulkanSampler::VulkanSampler(VulkanDevice& inDevice, const RHISamplerDesc& inDesc)
     : m_Device(inDevice)
     , m_Desc(inDesc)

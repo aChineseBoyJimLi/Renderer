@@ -72,17 +72,23 @@ public:
     RefCountPtr<RHIBuffer> CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual = false) override;
     RefCountPtr<RHITexture> CreateTexture(const RHITextureDesc& inDesc, bool isVirtual = false) override;
     RefCountPtr<VulkanTexture> CreateTexture(const RHITextureDesc& inDesc, VkImage inImage);
+    RefCountPtr<RHISampler> CreateSampler(const RHISamplerDesc& inDesc) override;
     RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) override;
+    RefCountPtr<RHIResourceSet> CreateResourceSet(const RHIPipelineBindingLayout* inLayout) override;
     void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr,
                             const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
                             const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores = nullptr) override;
 
+    RefCountPtr<VulkanFence> CreateVulkanFence();
     RefCountPtr<VulkanSemaphore> CreateVulkanSemaphore();
     void SetDebugName(VkObjectType objectType, uint64_t objectHandle, const std::string& name) const;
+    void BeginDebugMarker(const char* name, VkCommandBuffer cmdBuffer) const;
+    void EndDebugMarker(VkCommandBuffer cmdBuffer) const;
     ERHIBackend GetBackend() const override { return ERHIBackend::Vulkan; }
     VkInstance GetInstance() const { return m_InstanceHandle; }
     VkPhysicalDevice GetPhysicalDevice() const { return m_PhysicalDeviceHandle; }
     VkDevice GetDevice() const { return m_DeviceHandle; }
+    VkDescriptorPool GetDescriptorPool() const { return m_DescriptorPoolHandle; }
     uint32_t GetQueueFamilyIndex(ERHICommandQueueType type) const {return m_QueueIndex[static_cast<uint32_t>(type)]; }
     VkQueue GetCommandQueue(ERHICommandQueueType type) const {return m_QueueHandles[static_cast<uint32_t>(type)]; }
     bool GetMemoryTypeIndex(uint32_t inTypeFilter, VkMemoryPropertyFlags inProperties, uint32_t& outMemTypeIndex) const;
@@ -92,6 +98,7 @@ public:
     PFN_vkSetDebugUtilsObjectNameEXT                vkSetDebugUtilsObjectNameEXT;
     PFN_vkGetBufferDeviceAddressKHR                 vkGetBufferDeviceAddressKHR;
     PFN_vkCmdDrawMeshTasksEXT                       vkCmdDrawMeshTasksEXT;
+    PFN_vkCmdDrawMeshTasksIndirectEXT               vkCmdDrawMeshTasksIndirectEXT;
     PFN_vkCreateAccelerationStructureKHR            vkCreateAccelerationStructureKHR;
     PFN_vkDestroyAccelerationStructureKHR           vkDestroyAccelerationStructureKHR;
     PFN_vkGetAccelerationStructureBuildSizesKHR     vkGetAccelerationStructureBuildSizesKHR;
@@ -101,12 +108,16 @@ public:
     PFN_vkCmdTraceRaysKHR                           vkCmdTraceRaysKHR;
     PFN_vkGetRayTracingShaderGroupHandlesKHR        vkGetRayTracingShaderGroupHandlesKHR;
     PFN_vkCreateRayTracingPipelinesKHR              vkCreateRayTracingPipelinesKHR;
+
+    PFN_vkCmdDebugMarkerBeginEXT                    vkCmdDebugMarkerBeginEXT;
+    PFN_vkCmdDebugMarkerEndEXT                      vkCmdDebugMarkerEndEXT;
     
 private:
     friend bool RHI::Init(bool useVulkan);
     VulkanDevice();
     void ShutdownInternal();
     void EnableDeviceExtensions(VkPhysicalDeviceFeatures2& deviceFeatures2);
+    bool InitDescriptorPool();
 
     VkInstance                  m_InstanceHandle;
     VkDebugUtilsMessengerEXT    m_DebugMessenger;
@@ -121,7 +132,8 @@ private:
     VkPhysicalDeviceMemoryProperties    m_PhysicalDeviceMemoryProperties {};
     VkPhysicalDeviceProperties          m_PhysicalDeviceProperties {};
     VkPhysicalDeviceFragmentShadingRatePropertiesKHR m_PhysicalDeviceShadingRateProperties{};
-    
+
+    bool m_SupportDebugMarker {false};
     bool m_SupportDescriptorIndexing {false};
     bool m_SupportSpirv14 {false};
     bool m_SupportPipelineLibrary {false};
@@ -130,4 +142,6 @@ private:
     bool m_SupportRayTracing {false};
     bool m_SupportMeshShading {false};
     bool m_SupportVariableRateShading {false};
+
+    VkDescriptorPool    m_DescriptorPoolHandle;
 };

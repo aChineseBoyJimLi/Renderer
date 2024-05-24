@@ -48,5 +48,6 @@ namespace RHI::Vulkan
     void                    TranslateDepthStencilState(const RHIDepthStencilDesc& depthStencilState, VkPipelineDepthStencilStateCreateInfo& outState);
     void                    TranslateBlendState(const RHIBlendStateDesc& inState, VkPipelineColorBlendStateCreateInfo& outState);
     void                    TranslateRasterizerState(const RHIRasterizerDesc& inState, VkPipelineRasterizationStateCreateInfo& outState);
+    VkImageAspectFlags      GuessImageAspectFlags(ERHIFormat inFormat);
     
 }

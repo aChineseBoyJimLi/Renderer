@@ -33,17 +33,16 @@ bool D3D12PipelineBindingLayout::Init()
         return true;
     }
 
-    std::array<CD3DX12_DESCRIPTOR_RANGE, s_RootSignatureMaxSize> descriptorRanges;
-    std::vector<CD3DX12_ROOT_PARAMETER> rootParamters;
+    
     uint8_t totalRootSignaturesSize = 0;
     uint8_t totalCbvDescriptorsCount = 0;
     uint8_t totalDescriptorRangesCount = 0;
     
     auto AddDescriptorTable = [&](D3D12_DESCRIPTOR_RANGE_TYPE inType, uint32_t inNumDescriptors, uint32_t inBaseRegister, uint32_t inSpace)
     {
-        descriptorRanges[totalDescriptorRangesCount].Init(inType, inNumDescriptors, inBaseRegister, inSpace);
-        rootParamters.emplace_back();
-        rootParamters.back().InitAsDescriptorTable(1, &descriptorRanges[totalDescriptorRangesCount], D3D12_SHADER_VISIBILITY_ALL);
+        m_DescriptorRanges[totalDescriptorRangesCount].Init(inType, inNumDescriptors, inBaseRegister, inSpace);
+        m_RootParameters.emplace_back();
+        m_RootParameters.back().InitAsDescriptorTable(1, &m_DescriptorRanges[totalDescriptorRangesCount], D3D12_SHADER_VISIBILITY_ALL);
         totalRootSignaturesSize += 1;
         totalDescriptorRangesCount++;
     };
@@ -60,8 +59,8 @@ bool D3D12PipelineBindingLayout::Init()
         {
             for(uint32_t i = 0; i < bindingItem.NumResources; i++)
             {
-                rootParamters.emplace_back();
-                rootParamters.back().InitAsConstantBufferView(bindingItem.BaseRegister + i, bindingItem.Space, D3D12_SHADER_VISIBILITY_ALL);
+                m_RootParameters.emplace_back();
+                m_RootParameters.back().InitAsConstantBufferView(bindingItem.BaseRegister + i, bindingItem.Space, D3D12_SHADER_VISIBILITY_ALL);
                 totalRootSignaturesSize += 2;
                 totalCbvDescriptorsCount++;
             }
@@ -97,8 +96,8 @@ bool D3D12PipelineBindingLayout::Init()
     if(m_Desc.AllowInputLayout)
         rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-    rootSignatureDesc.Init((uint32_t)rootParamters.size()
-           , rootParamters.data()
+    rootSignatureDesc.Init((uint32_t)m_RootParameters.size()
+           , m_RootParameters.data()
            , 0, nullptr
            , rootSignatureFlags);
 

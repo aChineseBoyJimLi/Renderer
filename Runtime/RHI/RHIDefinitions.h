@@ -67,10 +67,10 @@ struct RHIRect
     uint32_t Width;
     uint32_t Height;
 
-    int32_t Left() const { return MinX; }
-    int32_t Right() const { return MinX + Width; }
-    int32_t Bottom() const { return MinY; }
-    int32_t Top() const { return MinY + Height; }
+    // int32_t Left() const { return MinX; }
+    // int32_t Right() const { return MinX + Width; }
+    // int32_t Bottom() const { return MinY; }
+    // int32_t Top() const { return MinY + Height; }
 
     static RHIRect Create(uint32_t Width, uint32_t Height);
     static RHIRect Create(int32_t MinX, int32_t MinY, uint32_t Width, uint32_t Height);
@@ -132,7 +132,7 @@ struct RHIClearValue
     }
 
     explicit RHIClearValue(float depth, uint32_t stencil = 0)
-    {
+    { 
         DepthStencil.Depth = depth;
         DepthStencil.Stencil = stencil;
     }
@@ -144,4 +144,35 @@ struct RHIClearValue
     static const RHIClearValue Transparent;
     static const RHIClearValue DepthOne;
     static const RHIClearValue DepthZero;
+};
+
+struct RHIDrawArguments
+{
+    uint32_t VertexCount = 0;
+    uint32_t InstanceCount = 1;
+    uint32_t VertexOffset = 0;
+    uint32_t FirstInstance = 0;
+};
+
+struct RHIDrawIndexedArguments
+{
+    uint32_t IndexCount = 0;
+    uint32_t InstanceCount = 1;
+    uint32_t FirstIndex = 0;
+    int32_t  VertexOffset = 0;
+    uint32_t FirstInstance = 0;
+};
+
+struct RHIDispatchArguments
+{
+    uint32_t ThreadGroupX;
+    uint32_t ThreadGroupY;
+    uint32_t ThreadGroupZ;
+};
+
+struct RHIDispatchMeshArguments
+{
+    uint32_t ThreadGroupX;
+    uint32_t ThreadGroupY;
+    uint32_t ThreadGroupZ;
 };

@@ -83,8 +83,8 @@ bool VulkanBuffer::Init()
     if(!IsVirtual() && IsManaged())
     {
         RHIResourceHeapDesc heapDesc{};
-        heapDesc.Alignment = GetAlignment();
-        heapDesc.Size = GetSizeInByte();
+        heapDesc.Alignment = GetAllocAlignment();
+        heapDesc.Size = GetAllocSizeInByte();
         heapDesc.TypeFilter = GetMemTypeFilter();
         heapDesc.Usage = ERHIHeapUsage::Buffer;
 
@@ -174,7 +174,7 @@ bool VulkanBuffer::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
         }
     }
 
-    if(!inHeap->TryAllocate(GetSizeInByte(), m_OffsetInHeap))
+    if(!inHeap->TryAllocate(GetAllocSizeInByte(), m_OffsetInHeap))
     {
         Log::Error("[Vulkan] Failed to bind buffer memory, the heap size is not enough");
         return false;
@@ -184,7 +184,7 @@ bool VulkanBuffer::BindMemory(RefCountPtr<RHIResourceHeap> inHeap)
     if(re != VK_SUCCESS)
     {
         OUTPUT_VULKAN_FAILED_RESULT(re)
-        inHeap->Free(m_OffsetInHeap, GetSizeInByte());
+        inHeap->Free(m_OffsetInHeap, GetAllocSizeInByte());
         m_OffsetInHeap = 0;
         return false;
     }
@@ -202,7 +202,7 @@ void VulkanBuffer::ShutdownInternal()
 {
     if(m_ResourceHeap != nullptr)
     {
-        m_ResourceHeap->Free(m_OffsetInHeap, GetSizeInByte());
+        m_ResourceHeap->Free(m_OffsetInHeap, GetAllocSizeInByte());
         m_ResourceHeap.SafeRelease();
         m_OffsetInHeap = 0;
     }

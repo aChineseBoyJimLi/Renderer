@@ -2,6 +2,9 @@
 
 #include "RHIDefinitions.h"
 
+class RHIResourceSet;
+struct RHISamplerDesc;
+class RHISampler;
 struct RHIGraphicsPipelineDesc;
 class RHIGraphicsPipeline;
 struct RHITextureDesc;
@@ -38,7 +41,7 @@ public:
 class RHIDevice : public RHIObject
 {
 public:
-    virtual ERHIBackend GetBackend() const = 0;
+    virtual ERHIBackend                 GetBackend() const = 0;
     virtual RefCountPtr<RHIFence>       CreateRhiFence() = 0;
     virtual RefCountPtr<RHISemaphore>   CreateRhiSemaphore() = 0;
     virtual RefCountPtr<RHICommandList> CreateCommandList(ERHICommandQueueType inType = ERHICommandQueueType::Direct) = 0;
@@ -49,7 +52,9 @@ public:
     virtual RefCountPtr<RHIResourceHeap> CreateResourceHeap(const RHIResourceHeapDesc& inDesc) = 0;
     virtual RefCountPtr<RHIBuffer> CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual = false) = 0;
     virtual RefCountPtr<RHITexture> CreateTexture(const RHITextureDesc& inDesc, bool isVirtual = false) = 0;
+    virtual RefCountPtr<RHISampler> CreateSampler(const RHISamplerDesc& inDesc) = 0;  
     virtual RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) = 0;
+    virtual RefCountPtr<RHIResourceSet> CreateResourceSet(const RHIPipelineBindingLayout* inLayout) = 0;
     virtual void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr,
                             const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
                             const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores = nullptr) = 0;
