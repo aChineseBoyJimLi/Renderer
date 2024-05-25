@@ -190,7 +190,8 @@ bool VulkanGraphicsPipeline::Init()
     pipelineInfo.pDepthStencilState = &depthStencilCreanInfo;
 
     VkPipelineColorBlendStateCreateInfo blendStateCreateInfo{};
-    RHI::Vulkan::TranslateBlendState(m_Desc.BlendState, blendStateCreateInfo);
+    VkPipelineColorBlendAttachmentState colorBlendAttachmentStates[RHIRenderTargetsMaxCount];
+    RHI::Vulkan::TranslateBlendState(m_Desc.BlendState, blendStateCreateInfo, colorBlendAttachmentStates);
     pipelineInfo.pColorBlendState = &blendStateCreateInfo;
 
     VkPipelineRasterizationStateCreateInfo rasterizerState{};

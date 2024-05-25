@@ -75,9 +75,12 @@ public:
     RefCountPtr<RHISampler> CreateSampler(const RHISamplerDesc& inDesc) override;
     RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) override;
     RefCountPtr<RHIResourceSet> CreateResourceSet(const RHIPipelineBindingLayout* inLayout) override;
-    void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr,
-                            const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
-                            const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores = nullptr) override;
+
+    void AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore) override;
+    void AddQueueSignalSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore) override;
+    void AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<VulkanSemaphore>& inSemaphore);
+    void AddQueueSignalSemaphore(ERHICommandQueueType inType, RefCountPtr<VulkanSemaphore>& inSemaphore);
+    void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr) override;
 
     RefCountPtr<VulkanFence> CreateVulkanFence();
     RefCountPtr<VulkanSemaphore> CreateVulkanSemaphore();
@@ -118,6 +121,8 @@ private:
     void ShutdownInternal();
     void EnableDeviceExtensions(VkPhysicalDeviceFeatures2& deviceFeatures2);
     bool InitDescriptorPool();
+    void AddQueueWaitForSemaphore(ERHICommandQueueType inType, VkSemaphore inSemaphore);
+    void AddQueueSignalSemaphore(ERHICommandQueueType inType, VkSemaphore inSemaphore);
 
     VkInstance                  m_InstanceHandle;
     VkDebugUtilsMessengerEXT    m_DebugMessenger;
@@ -144,4 +149,7 @@ private:
     bool m_SupportVariableRateShading {false};
 
     VkDescriptorPool    m_DescriptorPoolHandle;
+
+    std::array<std::vector<VkSemaphore>, COMMAND_QUEUES_COUNT> m_WaitForSemaphores;
+    std::array<std::vector<VkSemaphore>, COMMAND_QUEUES_COUNT> m_SignalSemaphores;
 };

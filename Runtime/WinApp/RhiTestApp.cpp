@@ -49,7 +49,7 @@ bool RhiTestApp::Init()
     graphicsPipelineLayoutDesc.Items.emplace_back(ERHIBindingResourceType::Buffer_SRV, 0);
     graphicsPipelineLayoutDesc.Items.emplace_back(ERHIBindingResourceType::Buffer_SRV, 1);
     graphicsPipelineLayoutDesc.Items.emplace_back(ERHIBindingResourceType::Sampler, 0);
-    graphicsPipelineLayoutDesc.Items.emplace_back(ERHIBindingResourceType::Texture_SRV, 0, 1, 5);
+    graphicsPipelineLayoutDesc.Items.emplace_back(ERHIBindingResourceType::Texture_SRV, 0, 1, 5, true);
     graphicsPipelineLayoutDesc.AllowInputLayout = true;
     graphicsPipelineLayoutDesc.IsRayTracingLocalLayout = false;
     
@@ -62,7 +62,7 @@ bool RhiTestApp::Init()
     
     RHIVertexInputLayoutDesc vertexInputLayoutDesc;
     vertexInputLayoutDesc.Items.emplace_back("POSITION", ERHIFormat::RGB32_FLOAT);
-    vertexInputLayoutDesc.Items.emplace_back("NORMAL", ERHIFormat::RGBA32_FLOAT);
+    vertexInputLayoutDesc.Items.emplace_back("NORMAL", ERHIFormat::RGB32_FLOAT);
     vertexInputLayoutDesc.Items.emplace_back("TEXCOORD", ERHIFormat::RG32_FLOAT);
     
     RHIGraphicsPipelineDesc graphicsPassDesc;
@@ -91,7 +91,7 @@ bool RhiTestApp::Init()
     swapChainDesc.hInstance = m_hInstance;
     m_SwapChain = RHI::CreateSwapChain(swapChainDesc);
     CreateFrameBuffer();
-    // CreateResources();
+    CreateResources();
     return true;
 }
 
@@ -113,21 +113,21 @@ void RhiTestApp::Tick()
     scissorRects.push_back(RHIRect::Create(m_Width, m_Height));
 
     m_CommandList->SetPipelineState(m_GraphicsPipeline);
-    m_CommandList->SetFrameBuffer(m_FrameBuffers[currentFrame], &RHIClearValue::White, 1);
-    
-    
+    m_CommandList->SetFrameBuffer(m_FrameBuffers[currentFrame], &RHIClearValue::Red, 1);
     m_CommandList->SetViewports(viewports);
     m_CommandList->SetScissorRects(scissorRects);
-    // m_CommandList->SetVertexBuffer(m_VertexBuffer);
-    // m_CommandList->SetIndexBuffer(m_IndexBuffer);
-    // m_CommandList->SetResourceSet(m_ResourceSet);
+    m_CommandList->SetVertexBuffer(m_VertexBuffer);
+    m_CommandList->SetIndexBuffer(m_IndexBuffer);
+    m_CommandList->SetResourceSet(m_ResourceSet);
+    m_CommandList->DrawIndexed(m_Mesh->GetIndicesCount(), s_InstancesCount);
     // m_CommandList->DrawIndexedIndirect(m_IndirectDrawCommandsBuffer, 1);
     m_CommandList->ResourceBarrier(colorAttachment, ERHIResourceStates::Present);
     m_CommandList->End();
     
-    // RHI::GetDevice()->ExecuteCommandList(m_CommandList, m_Fence);
-    // m_SwapChain->Present();
-    // m_Fence->CpuWait();
+    RHI::GetDevice()->ExecuteCommandList(m_CommandList, m_Fence);
+    m_Fence->CpuWait();
+    m_SwapChain->Present();
+    
 }
 
 void RhiTestApp::Shutdown()
@@ -238,7 +238,7 @@ void RhiTestApp::CreateResources()
 
     // Light Data
     Light light;
-    light.Transform.SetWorldForward(glm::vec3(-1,-1,-1));
+    light.Transform.SetWorldForward(glm::vec3(1,1,1));
     light.Color = glm::vec3(1, 1, 1);
     light.Intensity = 1.0f;
     DirectionalLightData lightData;
@@ -293,8 +293,6 @@ void RhiTestApp::CreateResources()
                 instancesData[i].LocalToWorld = transform.GetLocalToWorldMatrix();
                 instancesData[i].WorldToLocal = transform.GetWorldToLocalMatrix();
                 instancesData[i].MaterialIndex = i % s_MaterialCount;
-                
-                
             }
         }
     }
@@ -307,10 +305,7 @@ void RhiTestApp::CreateResources()
 
     // Vertex Buffer
     const size_t vertexBufferSize = m_Mesh->GetVerticesCount() * sizeof(VertexData);
-    RHIBufferDesc vbDesc;
-    vbDesc.Usages = ERHIBufferUsage::VertexBuffer;
-    vbDesc.Size = vertexBufferSize;
-    vbDesc.Stride = sizeof(VertexData);
+    RHIBufferDesc vbDesc = RHIBufferDesc::VertexBuffer(vertexBufferSize, sizeof(VertexData));
     m_VertexBuffer = RHI::GetDevice()->CreateBuffer(vbDesc);
     
     RHIBufferDesc stagingBufferDesc;
@@ -321,10 +316,7 @@ void RhiTestApp::CreateResources()
     vbStagingBuffer->WriteData(verticesData.data(), vertexBufferSize);
 
     // Index Buffer
-    RHIBufferDesc ibDesc;
-    ibDesc.Usages = ERHIBufferUsage::IndexBuffer;
-    ibDesc.Size = m_Mesh->GetIndicesDataByteSize();
-    ibDesc.Format = ERHIFormat::R32_UINT;
+    RHIBufferDesc ibDesc = RHIBufferDesc::IndexBuffer(m_Mesh->GetIndicesDataByteSize(), ERHIFormat::R32_UINT);
     m_IndexBuffer = RHI::GetDevice()->CreateBuffer(ibDesc);
 
     stagingBufferDesc.Size = m_Mesh->GetIndicesDataByteSize();
@@ -370,6 +362,7 @@ void RhiTestApp::CreateResources()
     
 
     std::array<RefCountPtr<RHIBuffer>, s_TexturesCount> mainTextureStagingBuffers;
+    m_MainTextures.resize(s_TexturesCount);
     // Main Textures
     for(uint32_t i = 0; i < 5; i++)
     {
@@ -399,31 +392,27 @@ void RhiTestApp::CreateResources()
     m_CopyCommandList->CopyBuffer(m_IndexBuffer, 0, ibStagingBuffer, 0, m_Mesh->GetIndicesDataByteSize());
     m_CopyCommandList->CopyBuffer(m_MaterialBuffer, 0, mdStagingBuffer, 0, materialsBufferBytesSize);
     m_CopyCommandList->CopyBuffer(m_InstanceBuffer, 0, idStagingBuffer, 0, instancesBufferBytesSize);
-    // m_CopyCommandList->CopyBuffer(m_IndirectDrawCommandsBuffer, 0, idcStagingBuffer, 0, indirectCommandsBufferBytesSize);
+    m_CopyCommandList->CopyBuffer(m_IndirectDrawCommandsBuffer, 0, idcStagingBuffer, 0, indirectCommandsBufferBytesSize);
     
-    for(uint32_t i = 0; i < 5; i++)
+    for(uint32_t i = 0; i < s_TexturesCount; i++)
     {
         m_CopyCommandList->CopyBufferToTexture(m_MainTextures[i], mainTextureStagingBuffers[i]);
     }
     
     m_CopyCommandList->End();
-    
-    RHI::GetDevice()->ExecuteCommandList(m_CopyCommandList, m_Fence);
-    m_Fence->CpuWait();
 
+    std::vector<RHISemaphoreRef> semaphores { m_Semaphore }; 
+    RHI::GetDevice()->AddQueueSignalSemaphore(ERHICommandQueueType::Copy, m_Semaphore);
+    RHI::GetDevice()->ExecuteCommandList(m_CopyCommandList);
+    
     m_CommandList->Begin();
-    // m_CommandList->ResourceBarrier(m_IndirectDrawCommandsBuffer, ERHIResourceStates::CopyDst);
-    // m_CommandList->CopyBuffer(m_VertexBuffer, 0, vbStagingBuffer, 0, vertexBufferSize);
-    // m_CommandList->CopyBuffer(m_IndexBuffer, 0, ibStagingBuffer, 0, m_Mesh->GetIndicesDataByteSize());
-    // m_CommandList->CopyBuffer(m_MaterialBuffer, 0, mdStagingBuffer, 0, materialsBufferBytesSize);
-    // m_CommandList->CopyBuffer(m_InstanceBuffer, 0, idStagingBuffer, 0, instancesBufferBytesSize);
-    m_CommandList->CopyBuffer(m_IndirectDrawCommandsBuffer, 0, idcStagingBuffer, 0, indirectCommandsBufferBytesSize);
     m_CommandList->ResourceBarrier(m_IndirectDrawCommandsBuffer, ERHIResourceStates::UnorderedAccess);
-    // for(uint32_t i = 0; i < 5; i++)
-    // {
-    //     m_CommandList->CopyBufferToTexture(m_MainTextures[i], mainTextureStagingBuffers[i]);
-    // }
+    for(uint32_t i = 0; i < s_TexturesCount; i++)
+    {
+        m_CommandList->ResourceBarrier(m_MainTextures[i], ERHIResourceStates::GpuReadOnly);
+    }
     m_CommandList->End();
+    RHI::GetDevice()->AddQueueWaitForSemaphore(ERHICommandQueueType::Direct, m_Semaphore);
     RHI::GetDevice()->ExecuteCommandList(m_CommandList, m_Fence);
     m_Fence->CpuWait();
 
@@ -434,8 +423,5 @@ void RhiTestApp::CreateResources()
     m_ResourceSet->BindBufferSRV(0, 0, m_InstanceBuffer);
     m_ResourceSet->BindBufferSRV(1, 0, m_MaterialBuffer);
     m_ResourceSet->BindSampler(0, 0, m_Sampler);
-    for(uint32_t i = 0; i < s_TexturesCount; i++)
-    {
-        m_ResourceSet->BindTextureSRV(i, 1, m_MainTextures[i]);
-    }
+    m_ResourceSet->BindTextureSRVArray(0, 1, m_MainTextures);
 }

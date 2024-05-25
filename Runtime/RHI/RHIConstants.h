@@ -23,8 +23,7 @@ enum class ERHICommandQueueType : uint8_t
     Direct = 0,
     Copy,
     Async,
-    Count,
-    Invalid = UINT8_MAX
+    Count
 };
 
 enum class ERHIFormat : uint8_t

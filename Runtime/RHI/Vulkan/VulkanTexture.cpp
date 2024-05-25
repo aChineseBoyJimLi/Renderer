@@ -545,3 +545,28 @@ void VulkanTexture::ChangeState(const VulkanTextureState& inAfterState, const RH
         currentStateIter->second = inAfterState;
     }
 }
+
+VkDescriptorImageInfo VulkanTexture::GetDescriptorImageInfo(ERHIBindingResourceType inViewType, const RHITextureSubResource& inSubResource)
+{
+    const VulkanTextureState& currentState = GetCurrentState(inSubResource);
+    VkImageView imageView = VK_NULL_HANDLE;
+    if(inViewType == ERHIBindingResourceType::Texture_SRV)
+    {
+        if(!TryGetSRVHandle(imageView, inSubResource))
+        {
+            CreateSRV(imageView, inSubResource);
+        }
+    }
+    else if(inViewType == ERHIBindingResourceType::Texture_UAV)
+    {
+        if(!TryGetUAVHandle(imageView, inSubResource))
+        {
+            CreateUAV(imageView, inSubResource);
+        }
+    }
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.sampler = VK_NULL_HANDLE;
+    imageInfo.imageLayout = currentState.Layout;
+    imageInfo.imageView = imageView;
+    return imageInfo;
+}

@@ -573,27 +573,27 @@ namespace RHI::Vulkan
         outState.back.reference = depthStencilState.StencilRef;
     }
 
-    void TranslateBlendState(const RHIBlendStateDesc& inState, VkPipelineColorBlendStateCreateInfo& outState)
+    void TranslateBlendState(const RHIBlendStateDesc& inState, VkPipelineColorBlendStateCreateInfo& outState, VkPipelineColorBlendAttachmentState* outAttachment)
     {
-        VkPipelineColorBlendAttachmentState attachment[RHIRenderTargetsMaxCount];
+        // VkPipelineColorBlendAttachmentState attachment[RHIRenderTargetsMaxCount];
 
         for(uint32_t i = 0; i < inState.NumRenderTarget; ++i)
         {
-            attachment[i].blendEnable = true;
-            attachment[i].srcColorBlendFactor = ConvertBlendValue(inState.Targets[i].ColorSrcBlend);
-            attachment[i].dstColorBlendFactor = ConvertBlendValue(inState.Targets[i].ColorDstBlend);
-            attachment[i].colorBlendOp = ConvertBlendOp(inState.Targets[i].ColorBlendOp);
-            attachment[i].srcAlphaBlendFactor = ConvertBlendValue(inState.Targets[i].AlphaSrcBlend);
-            attachment[i].dstAlphaBlendFactor = ConvertBlendValue(inState.Targets[i].AlphaDstBlend);
-            attachment[i].alphaBlendOp = ConvertBlendOp(inState.Targets[i].AlphaBlendOp);
-            attachment[i].colorWriteMask = ConvertColorMask(inState.Targets[i].ColorWriteMask);
+            outAttachment[i].blendEnable = inState.Targets[i].BlendEnable;
+            outAttachment[i].srcColorBlendFactor = ConvertBlendValue(inState.Targets[i].ColorSrcBlend);
+            outAttachment[i].dstColorBlendFactor = ConvertBlendValue(inState.Targets[i].ColorDstBlend);
+            outAttachment[i].colorBlendOp = ConvertBlendOp(inState.Targets[i].ColorBlendOp);
+            outAttachment[i].srcAlphaBlendFactor = ConvertBlendValue(inState.Targets[i].AlphaSrcBlend);
+            outAttachment[i].dstAlphaBlendFactor = ConvertBlendValue(inState.Targets[i].AlphaDstBlend);
+            outAttachment[i].alphaBlendOp = ConvertBlendOp(inState.Targets[i].AlphaBlendOp);
+            outAttachment[i].colorWriteMask = ConvertColorMask(inState.Targets[i].ColorWriteMask);
         }
         
         outState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         outState.logicOpEnable = VK_FALSE;
         outState.logicOp = VK_LOGIC_OP_COPY;
         outState.attachmentCount = inState.NumRenderTarget;
-        outState.pAttachments = attachment;
+        outState.pAttachments = outAttachment;
         outState.blendConstants[0] = 1.0f;
         outState.blendConstants[1] = 1.0f;
         outState.blendConstants[2] = 1.0f;
@@ -628,6 +628,22 @@ namespace RHI::Vulkan
         default:
             return VK_IMAGE_ASPECT_COLOR_BIT;
         }
-        return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+
+    uint32_t GetBindingSlot(ERHIRegisterType registerType, uint32_t inRegisterSlot)
+    {
+        switch (registerType)
+        {
+        case ERHIRegisterType::ConstantBuffer:
+            return inRegisterSlot + SPIRV_CBV_BINDING_OFFSET;
+        case ERHIRegisterType::ShaderResource:
+            return inRegisterSlot + SPIRV_SRV_BINDING_OFFSET;
+        case ERHIRegisterType::UnorderedAccess:
+            return inRegisterSlot + SPIRV_UAV_BINDING_OFFSET;
+        case ERHIRegisterType::Sampler:
+            return inRegisterSlot + SPIRV_SAMPLER_BINDING_OFFSET;
+        default:
+            return inRegisterSlot;
+        }
     }
 }

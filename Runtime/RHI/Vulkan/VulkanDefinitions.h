@@ -25,6 +25,7 @@ class RHIShader;
 namespace RHI::Vulkan
 {
     VkDescriptorSetLayoutBinding ConvertBindingLayoutItem(const RHIPipelineBindingItem& inItem);
+    VkDescriptorType        ConvertDescriptorType(ERHIBindingResourceType resourceType);
     VkFormat                ConvertFormat(ERHIFormat inFormat);
     VkSampleCountFlagBits   ConvertSampleBits(uint32_t inSampleCount);
     bool                    CreateShaderModule(const std::shared_ptr<Blob>& inByteCode, VkDevice inDevice, VkShaderModule& outShaderModule);
@@ -46,8 +47,9 @@ namespace RHI::Vulkan
     VkBlendOp               ConvertBlendOp(ERHIBlendOp inOp);
     VkColorComponentFlags   ConvertColorMask(ERHIColorWriteMask inMask);
     void                    TranslateDepthStencilState(const RHIDepthStencilDesc& depthStencilState, VkPipelineDepthStencilStateCreateInfo& outState);
-    void                    TranslateBlendState(const RHIBlendStateDesc& inState, VkPipelineColorBlendStateCreateInfo& outState);
+    void                    TranslateBlendState(const RHIBlendStateDesc& inState, VkPipelineColorBlendStateCreateInfo& outState, VkPipelineColorBlendAttachmentState* outAttachment);
     void                    TranslateRasterizerState(const RHIRasterizerDesc& inState, VkPipelineRasterizationStateCreateInfo& outState);
     VkImageAspectFlags      GuessImageAspectFlags(ERHIFormat inFormat);
+    uint32_t                GetBindingSlot(ERHIRegisterType registerType, uint32_t inRegisterSlot);
     
 }

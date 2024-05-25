@@ -103,6 +103,7 @@ void VulkanCommandList::End()
         FlushBarriers();
         vkEndCommandBuffer(m_CmdBufferHandle);
         m_IsClosed = true;
+        m_Context.Clear();
     }
 }
 
@@ -115,7 +116,10 @@ void VulkanCommandList::SetPipelineState(const RefCountPtr<RHIComputePipeline>& 
             EndRenderPass();
         }
         const VulkanComputePipeline* pipeline = CheckCast<VulkanComputePipeline*>(inPipelineState.GetReference());
+        VulkanPipelineBindingLayout* bindingLayout = CheckCast<VulkanPipelineBindingLayout*>(inPipelineState->GetDesc().BindingLayout);
+        m_Context.pipelineLayout = bindingLayout->GetPipelineLayout();
         vkCmdBindPipeline(m_CmdBufferHandle, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->GetPipeline());
+        m_Context.bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
     }
 }
 
@@ -128,10 +132,12 @@ void VulkanCommandList::SetPipelineState(const RefCountPtr<RHIGraphicsPipeline>&
             EndRenderPass();
         }
 
-        VulkanGraphicsPipeline* pipeline = CheckCast<VulkanGraphicsPipeline*>(inPipelineState.GetReference());
-
+        const VulkanGraphicsPipeline* pipeline = CheckCast<VulkanGraphicsPipeline*>(inPipelineState.GetReference());
+        const VulkanPipelineBindingLayout* bindingLayout = CheckCast<VulkanPipelineBindingLayout*>(inPipelineState->GetDesc().BindingLayout);
+        m_Context.pipelineLayout = bindingLayout->GetPipelineLayout();
         m_Context.renderPass = pipeline->GetRenderPass();
         m_Context.pipelineState = pipeline->GetPipeline();
+        m_Context.bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     }
 }
 
@@ -214,9 +220,12 @@ void VulkanCommandList::EndRenderPass()
 {
     if (IsValid() && !IsClosed())
     {
-        vkCmdEndRenderPass(m_CmdBufferHandle);
-        FlushBarriers();
-        m_Context.Clear();
+        if(m_Context.pipelineState && m_Context.frameBuffer && m_Context.renderPass)
+        {
+            vkCmdEndRenderPass(m_CmdBufferHandle);
+            FlushBarriers();
+            m_Context.Clear();
+        }
     }
 }
 
@@ -278,6 +287,8 @@ void VulkanCommandList::CopyTexture(RefCountPtr<RHITexture>& dstTexture, RefCoun
 {
     if(IsValid() && !IsClosed())
     {
+        ResourceBarrier(srcTexture, ERHIResourceStates::CopySrc);
+        ResourceBarrier(dstTexture, ERHIResourceStates::CopyDst);
         VulkanTexture* texture0 = CheckCast<VulkanTexture*>(dstTexture.GetReference());
         VulkanTexture* texture1 = CheckCast<VulkanTexture*>(srcTexture.GetReference());
 
@@ -318,8 +329,8 @@ void VulkanCommandList::CopyTexture(RefCountPtr<RHITexture>& dstTexture, RefCoun
             , 1, &copyRegion);
 
         
-        texture0->ChangeState({dstCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL});
-        texture1->ChangeState({srcCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL});
+        texture1->ChangeState({dstCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL});
+        // texture0->ChangeState({srcCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL});
     }
 }
 
@@ -327,6 +338,8 @@ void VulkanCommandList::CopyTexture(RefCountPtr<RHITexture>& dstTexture, const R
 {
     if(IsValid() && !IsClosed())
     {
+        ResourceBarrier(srcTexture, ERHIResourceStates::CopySrc);
+        ResourceBarrier(dstTexture, ERHIResourceStates::CopyDst);
         FlushBarriers();
 
         VulkanTexture* texture0 = CheckCast<VulkanTexture*>(dstTexture.GetReference());
@@ -365,8 +378,8 @@ void VulkanCommandList::CopyTexture(RefCountPtr<RHITexture>& dstTexture, const R
             , 1, &copyRegion);
 
         
-        texture0->ChangeState({dstCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL});
-        texture1->ChangeState({srcCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL});
+        texture1->ChangeState({dstCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL});
+        // texture0->ChangeState({srcCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL});
     }
 }
 
@@ -374,20 +387,29 @@ void VulkanCommandList::CopyBufferToTexture(RefCountPtr<RHITexture>& dstTexture,
 {
     if(IsValid() && !IsClosed())
     {
-        
-    }
-}
-
-void VulkanCommandList::CopyBufferToTexture(RefCountPtr<RHITexture>& dstTexture, const RHITextureSlice& dstSlice, RefCountPtr<RHIBuffer>& srcBuffer, size_t srcOffset)
-{
-    if(IsValid() && !IsClosed())
-    {
+        ResourceBarrier(dstTexture, ERHIResourceStates::CopyDst);
         FlushBarriers();
 
         VulkanTexture* texture0 = CheckCast<VulkanTexture*>(dstTexture.GetReference());
         VulkanBuffer* buffer1 = CheckCast<VulkanBuffer*>(srcBuffer.GetReference());
+
+        const RHITextureDesc& textureDesc = dstTexture->GetDesc();
+        const VulkanTextureState& dstCurrentState = texture0->GetCurrentState();
         
         VkBufferImageCopy copyInfo{};
+        copyInfo.bufferOffset = 0;
+        copyInfo.bufferRowLength = 0;
+        copyInfo.bufferImageHeight = 0;
+        copyInfo.imageOffset.x = 0;
+        copyInfo.imageOffset.y = 0;
+        copyInfo.imageOffset.z = 0;
+        copyInfo.imageExtent.width = textureDesc.Width;
+        copyInfo.imageExtent.height = textureDesc.Height;
+        copyInfo.imageExtent.depth = textureDesc.Depth;
+        copyInfo.imageSubresource.aspectMask = RHI::Vulkan::GuessImageAspectFlags(texture0->GetDesc().Format);
+        copyInfo.imageSubresource.layerCount = textureDesc.ArraySize;
+        copyInfo.imageSubresource.mipLevel = 0;
+        copyInfo.imageSubresource.baseArrayLayer = 0;
         
         vkCmdCopyBufferToImage(m_CmdBufferHandle
             , buffer1->GetBuffer()
@@ -395,6 +417,46 @@ void VulkanCommandList::CopyBufferToTexture(RefCountPtr<RHITexture>& dstTexture,
             , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             , 1
             , &copyInfo);
+
+        // texture0->ChangeState({dstCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL});
+    }
+}
+
+void VulkanCommandList::CopyBufferToTexture(RefCountPtr<RHITexture>& dstTexture, const RHITextureSlice& dstSlice, RefCountPtr<RHIBuffer>& srcBuffer, size_t srcOffset)
+{
+    if(IsValid() && !IsClosed())
+    {
+        ResourceBarrier(dstTexture, ERHIResourceStates::CopyDst);
+        FlushBarriers();
+
+        VulkanTexture* texture0 = CheckCast<VulkanTexture*>(dstTexture.GetReference());
+        VulkanBuffer* buffer1 = CheckCast<VulkanBuffer*>(srcBuffer.GetReference());
+
+        const VulkanTextureState& dstCurrentState = texture0->GetCurrentState();
+        
+        VkBufferImageCopy copyInfo{};
+        copyInfo.bufferOffset = srcOffset;
+        copyInfo.bufferRowLength = 0;
+        copyInfo.bufferImageHeight = 0;
+        copyInfo.imageOffset.x = (int)dstSlice.X;
+        copyInfo.imageOffset.y = (int)dstSlice.Y;
+        copyInfo.imageOffset.z = (int)dstSlice.Z;
+        copyInfo.imageExtent.width = dstSlice.Width;
+        copyInfo.imageExtent.height = dstSlice.Height;
+        copyInfo.imageExtent.depth = dstSlice.Depth;
+        copyInfo.imageSubresource.aspectMask = RHI::Vulkan::GuessImageAspectFlags(texture0->GetDesc().Format);
+        copyInfo.imageSubresource.layerCount = 1;
+        copyInfo.imageSubresource.mipLevel = dstSlice.MipLevel;
+        copyInfo.imageSubresource.baseArrayLayer = dstSlice.ArraySlice;
+        
+        vkCmdCopyBufferToImage(m_CmdBufferHandle
+            , buffer1->GetBuffer()
+            , texture0->GetTextureHandle()
+            , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            , 1
+            , &copyInfo);
+
+        // texture0->ChangeState({dstCurrentState.AccessFlags, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL});
     }
 }
 
@@ -511,7 +573,8 @@ void VulkanCommandList::SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer)
     {
         const VulkanBuffer* buffer = CheckCast<VulkanBuffer*>(inBuffer.GetReference());
         VkBuffer bufferVk = buffer->GetBuffer();
-        vkCmdBindVertexBuffers(m_CmdBufferHandle, 0, 1, &bufferVk, 0);
+        VkDeviceSize offset = 0;
+        vkCmdBindVertexBuffers(m_CmdBufferHandle, 0, 1, &bufferVk, &offset);
     }
 }
 
@@ -520,11 +583,14 @@ void VulkanCommandList::SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer)
     if(IsValid() && !IsClosed())
     {
         const VulkanBuffer* buffer = CheckCast<VulkanBuffer*>(inBuffer.GetReference());
-        size_t stride = buffer->GetDesc().Stride;
+        ERHIFormat format = buffer->GetDesc().Format;
+
+        const RHIFormatInfo& formatInfo = RHI::GetFormatInfo(format);
+        
         VkIndexType type = VK_INDEX_TYPE_NONE_KHR;
-        if(stride == sizeof(uint32_t))
+        if(formatInfo.BytesPerBlock == sizeof(uint32_t))
             type = VK_INDEX_TYPE_UINT32;
-        else if(stride == sizeof(uint16_t))
+        else if(formatInfo.BytesPerBlock == sizeof(uint16_t))
             type = VK_INDEX_TYPE_UINT16;
         else
             type = VK_INDEX_TYPE_UINT8_EXT;
@@ -541,7 +607,6 @@ void VulkanCommandList::ResourceBarrier(RefCountPtr<RHITexture>& inResource , ER
         if(texture && texture->IsValid())
         {
             VulkanTextureState currentState = texture->GetCurrentState();
-            const RHIFormatInfo& formatInfo = RHI::GetFormatInfo(desc.Format);
             VkImageMemoryBarrier barrier{};
             barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             barrier.oldLayout = currentState.Layout;
@@ -549,16 +614,7 @@ void VulkanCommandList::ResourceBarrier(RefCountPtr<RHITexture>& inResource , ER
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.image = texture->GetTextureHandle();
-            if(formatInfo.HasDepth)
-            {
-                barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-                if(formatInfo.HasStencil)
-                    barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-            }
-            else
-            {
-                barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            }
+            barrier.subresourceRange.aspectMask = RHI::Vulkan::GuessImageAspectFlags(desc.Format);
             barrier.subresourceRange.baseMipLevel = 0;
             barrier.subresourceRange.levelCount = desc.MipLevels;
             barrier.subresourceRange.baseArrayLayer = 0;
@@ -580,7 +636,19 @@ void VulkanCommandList::ResourceBarrier(RefCountPtr<RHIBuffer>& inResource, ERHI
 
 void VulkanCommandList::SetResourceSet(RefCountPtr<RHIResourceSet>& inResourceSet)
 {
-    
+    if(IsValid() && !IsClosed())
+    {
+        VulkanResourceSet* resourceSet = CheckCast<VulkanResourceSet*>(inResourceSet.GetReference());
+        if(!m_Context.pipelineLayout)
+        {
+            Log::Error("[Vulkan] The pipeline must be bound before setting the resource set");
+            return;
+        }
+        if(resourceSet && resourceSet->IsValid())
+        {
+            vkCmdBindDescriptorSets(m_CmdBufferHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Context.pipelineLayout, 0, resourceSet->GetDescriptorSetsCount(), resourceSet->GetDescriptorSets(), 0, nullptr);
+        }
+    }
 }
 
 void VulkanCommandList::FlushBarriers(VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage)

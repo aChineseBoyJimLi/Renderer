@@ -30,6 +30,8 @@ bool VulkanSwapChain::Init()
     }
 
     m_ImageAvailableFence = m_Device.CreateVulkanFence();
+    m_ImageAvailableSemaphore = m_Device.CreateVulkanSemaphore();
+    
     if(!m_ImageAvailableFence->IsValid())
     {
         return false;
@@ -62,11 +64,16 @@ bool VulkanSwapChain::Init()
         vkGetPhysicalDeviceSurfaceFormatsKHR(m_Device.GetPhysicalDevice(), m_SurfaceHandle, &formatCount, availableSurfaceformats.data());
     }
 
+    if (m_Desc.Format == ERHIFormat::SRGBA8_UNORM)
+        m_Desc.Format = ERHIFormat::SBGRA8_UNORM;
+    else if (m_Desc.Format == ERHIFormat::RGBA8_UNORM)
+        m_Desc.Format = ERHIFormat::BGRA8_UNORM;
+
     m_SwapChainFormat = RHI::Vulkan::ConvertFormat(m_Desc.Format);
     m_SwapChainColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     for (const auto& AvailableFormat : availableSurfaceformats) {
         if (AvailableFormat.format == m_SwapChainFormat) {
-            m_SwapChainColorSpace = AvailableFormat.colorSpace;
+            // m_SwapChainColorSpace = AvailableFormat.colorSpace;
             break;
         }
     }
@@ -224,9 +231,8 @@ void VulkanSwapChain::Present()
 
 void VulkanSwapChain::AcquireNextImageIndex()
 {
-    m_ImageAvailableFence->Reset();
-    vkAcquireNextImageKHR(m_Device.GetDevice(), m_SwapChainHandle, UINT64_MAX, VK_NULL_HANDLE, m_ImageAvailableFence->GetFence(), &m_CurrentBackBufferIndex);
-    m_ImageAvailableFence->CpuWait();
+    vkAcquireNextImageKHR(m_Device.GetDevice(), m_SwapChainHandle, UINT64_MAX, m_ImageAvailableSemaphore->GetSemaphore(), VK_NULL_HANDLE, &m_CurrentBackBufferIndex);
+    m_Device.AddQueueWaitForSemaphore(ERHICommandQueueType::Direct, m_ImageAvailableSemaphore);
 }
 
 void VulkanSwapChain::Resize(uint32_t inWidth, uint32_t inHeight)

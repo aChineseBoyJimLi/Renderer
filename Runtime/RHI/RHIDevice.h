@@ -55,7 +55,7 @@ public:
     virtual RefCountPtr<RHISampler> CreateSampler(const RHISamplerDesc& inDesc) = 0;  
     virtual RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) = 0;
     virtual RefCountPtr<RHIResourceSet> CreateResourceSet(const RHIPipelineBindingLayout* inLayout) = 0;
-    virtual void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr,
-                            const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
-                            const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores = nullptr) = 0;
+    virtual void AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore) = 0;
+    virtual void AddQueueSignalSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore) = 0;
+    virtual void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr) = 0;
 };

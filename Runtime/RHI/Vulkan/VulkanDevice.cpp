@@ -505,6 +505,15 @@ void VulkanDevice::Shutdown()
 
 void VulkanDevice::ShutdownInternal()
 {
+    for(auto semaphore : m_WaitForSemaphores)
+    {
+        semaphore.clear();
+    }
+    for(auto semaphore : m_SignalSemaphores)
+    {
+        semaphore.clear();
+    }
+    
     if(m_DescriptorPoolHandle != VK_NULL_HANDLE) vkDestroyDescriptorPool(m_DeviceHandle, m_DescriptorPoolHandle, nullptr);
     
     if(m_DeviceHandle != VK_NULL_HANDLE) vkDestroyDevice(m_DeviceHandle, nullptr);
@@ -538,9 +547,55 @@ bool VulkanDevice::IsValid() const
     return valid;
 }
 
-void VulkanDevice::ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence,
-                            const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores, 
-                            const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores)
+void VulkanDevice::AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore)
+{
+    
+    VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(inSemaphore.GetReference());
+    if(vulkanSemaphore && vulkanSemaphore->IsValid())
+    {
+        AddQueueWaitForSemaphore(inType, vulkanSemaphore->GetSemaphore());
+    }
+}
+
+void VulkanDevice::AddQueueSignalSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore)
+{
+    
+    VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(inSemaphore.GetReference());
+    if(vulkanSemaphore && vulkanSemaphore->IsValid())
+    {
+        AddQueueSignalSemaphore(inType, vulkanSemaphore->GetSemaphore());
+    }
+}
+
+void VulkanDevice::AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<VulkanSemaphore>& inSemaphore)
+{
+    if(inSemaphore->IsValid())
+    {
+        AddQueueWaitForSemaphore(inType, inSemaphore->GetSemaphore());
+    }
+}
+
+void VulkanDevice::AddQueueSignalSemaphore(ERHICommandQueueType inType, RefCountPtr<VulkanSemaphore>& inSemaphore)
+{
+    if(inSemaphore->IsValid())
+    {
+        AddQueueSignalSemaphore(inType, inSemaphore->GetSemaphore());
+    }
+}
+
+void VulkanDevice::AddQueueWaitForSemaphore(ERHICommandQueueType inType, VkSemaphore inSemaphore)
+{
+    std::vector<VkSemaphore>& waitForSemaphores = m_WaitForSemaphores[static_cast<uint32_t>(inType)];
+    waitForSemaphores.push_back(inSemaphore);
+}
+
+void VulkanDevice::AddQueueSignalSemaphore(ERHICommandQueueType inType, VkSemaphore inSemaphore)
+{
+    std::vector<VkSemaphore>& signalSemaphores = m_SignalSemaphores[static_cast<uint32_t>(inType)];
+    signalSemaphores.push_back(inSemaphore);
+}
+
+void VulkanDevice::ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence)
 {
     VulkanCommandList* commandList = CheckCast<VulkanCommandList*>(inCommandList.GetReference());
     
@@ -559,19 +614,19 @@ void VulkanDevice::ExecuteCommandList(const RefCountPtr<RHICommandList>& inComma
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &cmdBuffer;
 
-        std::vector<VkSemaphore> waitSemaphores;
-        if(inWaitForSemaphores && !inWaitForSemaphores->empty())
+        std::vector<VkSemaphore>& waitSemaphores = m_WaitForSemaphores[static_cast<uint32_t>(inCommandList->GetQueueType())];
+        std::vector<VkPipelineStageFlags> waitStageMasks(waitSemaphores.size());
+        
+        if(!waitSemaphores.empty())
         {
-            for(const auto& waitSemaphore : *inWaitForSemaphores)
+            for(uint32_t i = 0; i < waitSemaphores.size(); ++i)
             {
-                const VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(waitSemaphore.GetReference());
-                if(vulkanSemaphore && vulkanSemaphore->IsValid())
-                {
-                    waitSemaphores.push_back(vulkanSemaphore->GetSemaphore());
-                }
+                waitStageMasks[i] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             }
-            submitInfo.waitSemaphoreCount = (uint32_t)inWaitForSemaphores->size();
+            
+            submitInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
             submitInfo.pWaitSemaphores = waitSemaphores.data();
+            submitInfo.pWaitDstStageMask = waitStageMasks.data();
         }
         else
         {
@@ -579,19 +634,12 @@ void VulkanDevice::ExecuteCommandList(const RefCountPtr<RHICommandList>& inComma
             submitInfo.pWaitSemaphores = nullptr;
             submitInfo.pWaitDstStageMask = nullptr;
         }
-
-        std::vector<VkSemaphore> signalSemaphores;
-        if(inSignalSemaphores && !inSignalSemaphores->empty())
+        
+        
+        std::vector<VkSemaphore>& signalSemaphores = m_SignalSemaphores[static_cast<uint32_t>(inCommandList->GetQueueType())];
+        if(!signalSemaphores.empty())
         {
-            for(const auto& signalSemaphore : *inSignalSemaphores)
-            {
-                const VulkanSemaphore* vulkanSemaphore = CheckCast<VulkanSemaphore*>(signalSemaphore.GetReference());
-                if(vulkanSemaphore && vulkanSemaphore->IsValid())
-                {
-                    signalSemaphores.push_back(vulkanSemaphore->GetSemaphore());
-                }
-            }
-            submitInfo.signalSemaphoreCount = (uint32_t)inSignalSemaphores->size();
+            submitInfo.signalSemaphoreCount = (uint32_t)signalSemaphores.size();
             submitInfo.pSignalSemaphores = signalSemaphores.data();
         }
         else
@@ -599,6 +647,7 @@ void VulkanDevice::ExecuteCommandList(const RefCountPtr<RHICommandList>& inComma
             submitInfo.signalSemaphoreCount = 0;
             submitInfo.pSignalSemaphores = nullptr;
         }
+        
         if(inSignalFence != nullptr && inSignalFence->IsValid())
         {
             inSignalFence->Reset();
@@ -609,6 +658,9 @@ void VulkanDevice::ExecuteCommandList(const RefCountPtr<RHICommandList>& inComma
         {
             vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
         }
+
+        waitSemaphores.clear();
+        signalSemaphores.clear();
     }
     else
     {

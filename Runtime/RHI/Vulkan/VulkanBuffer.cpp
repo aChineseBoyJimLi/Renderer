@@ -307,3 +307,14 @@ void VulkanBuffer::SetNameInternal()
         m_Device.SetDebugName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(m_BufferHandle), m_Name);
     }
 }
+
+VkDescriptorBufferInfo VulkanBuffer::GetDescriptorBufferInfo() const
+{
+    VkDescriptorBufferInfo bufferInfo;
+
+    bufferInfo.buffer = m_BufferHandle;
+    bufferInfo.offset = 0;
+    bufferInfo.range = m_Desc.Size;
+    
+    return bufferInfo;
+}

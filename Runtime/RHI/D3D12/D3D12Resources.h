@@ -21,7 +21,7 @@ public:
     bool TryAllocate(size_t inSize, size_t& outOffset) override;
     void Free(size_t inOffset, size_t inSize) override;
     bool IsEmpty() const override;
-    uint32_t GetTotalChunks() const { return m_TotalChunkNum; }
+    uint32_t GetTotalChunks() const override { return m_TotalChunkNum; }
     ID3D12Heap* GetHeap() const { return m_HeapHandle.Get(); }
     
 protected:
@@ -307,6 +307,12 @@ public:
     void BindTextureSRV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) override;
     void BindTextureUAV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) override;
     void BindSampler(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHISampler>& inSampler) override;
+    void BindBufferSRVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer) override;
+    void BindBufferUAVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer) override;
+    void BindBufferCBVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer) override;
+    void BindTextureSRVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) override;
+    void BindTextureUAVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) override;
+    void BindSamplerArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHISampler>>& inSampler) override;
     const RHIPipelineBindingLayout* GetLayout() const override { return m_Layout; }
     void SetGraphicsRootArguments(ID3D12GraphicsCommandList* inCmdList) const;
     void SetComputeRootArguments(ID3D12GraphicsCommandList* inCmdList) const;
@@ -316,7 +322,7 @@ private:
     D3D12ResourceSet(D3D12Device& inDevice, const RHIPipelineBindingLayout* inLayout);
     void ShutdownInternal();
     void BindResource(ERHIResourceViewType inViewType, uint32_t inRegister, uint32_t inSpace, D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle, RHIResourceGpuAddress address);
-    
+    void BindResourceArray(ERHIResourceViewType inViewType, uint32_t inBaseRegister, uint32_t inSpace, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>& cpuDescriptorHandles);
     D3D12Device& m_Device;
     const RHIPipelineBindingLayout* m_Layout;
     const D3D12PipelineBindingLayout* m_LayoutD3D;

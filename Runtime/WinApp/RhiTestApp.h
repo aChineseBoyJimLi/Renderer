@@ -60,7 +60,7 @@ private:
     RHIBufferRef m_LightDataBuffer;
     RHIBufferRef m_InstanceBuffer;
     RHIBufferRef m_MaterialBuffer;
-    std::array<RHITextureRef, s_TexturesCount> m_MainTextures;
+    std::vector<RHITextureRef> m_MainTextures;
     RHISamplerRef m_Sampler;
     RHIBufferRef m_IndirectDrawCommandsBuffer;
 

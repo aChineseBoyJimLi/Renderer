@@ -79,9 +79,11 @@ public:
     RefCountPtr<RHISampler> CreateSampler(const RHISamplerDesc& inDesc) override;
     RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) override;
     RefCountPtr<RHIResourceSet> CreateResourceSet(const RHIPipelineBindingLayout* inLayout) override;
-    void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr,
-                            const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores = nullptr, 
-                            const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores = nullptr) override;
+    void AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore) override;
+    void AddQueueSignalSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore) override;
+    void AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<D3D12Semaphore>& inSemaphore);
+    void AddQueueSignalSemaphore(ERHICommandQueueType inType, RefCountPtr<D3D12Semaphore>& inSemaphore);
+    void ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence = nullptr) override;
     
     void FlushDirectCommandQueue();
     ERHIBackend GetBackend() const override { return ERHIBackend::D3D12; }
@@ -103,6 +105,8 @@ private:
     friend bool RHI::Init(bool useVulkan);
     D3D12Device();
     void ShutdownInternal();
+    void AddQueueWaitForSemaphore(ERHICommandQueueType inType, ID3D12Fence* inSemaphore);
+    void AddQueueSignalSemaphore(ERHICommandQueueType inType, ID3D12Fence* inSemaphore);
     
     Microsoft::WRL::ComPtr<IDXGIFactory2>               m_FactoryHandle;
     Microsoft::WRL::ComPtr<IDXGIAdapter1>               m_AdapterHandle;
@@ -113,6 +117,7 @@ private:
     D3D12_FEATURE_DATA_D3D12_OPTIONS5 m_Feature5Data{}; // RayTracing, RenderPass
     D3D12_FEATURE_DATA_D3D12_OPTIONS6 m_Feature6Data{}; // VariableShadingRate
     D3D12_FEATURE_DATA_D3D12_OPTIONS7 m_Feature7Data{}; // MeshShader, SamplerFeedback
-
     
+    std::array<std::vector<ID3D12Fence*>, COMMAND_QUEUES_COUNT> m_WaitForSemaphores;
+    std::array<std::vector<ID3D12Fence*>, COMMAND_QUEUES_COUNT> m_SignalSemaphores;
 };

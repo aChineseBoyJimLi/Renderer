@@ -145,6 +145,15 @@ void D3D12Device::Shutdown()
 
 void D3D12Device::ShutdownInternal()
 {
+    for(auto semaphore : m_WaitForSemaphores)
+    {
+        semaphore.clear();
+    }
+    for(auto semaphore : m_SignalSemaphores)
+    {
+        semaphore.clear();
+    }
+    
     for(auto i : m_QueueHandles)
     {
         i.Reset();
@@ -164,9 +173,56 @@ bool D3D12Device::IsValid() const
     return valid;
 }
 
-void D3D12Device::ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence,
-                            const std::vector<RefCountPtr<RHISemaphore>>* inWaitForSemaphores, 
-                            const std::vector<RefCountPtr<RHISemaphore>>* inSignalSemaphores)
+void D3D12Device::AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore)
+{
+    
+    D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(inSemaphore.GetReference());
+    if(d3dSemaphore && d3dSemaphore->IsValid())
+    {
+        AddQueueWaitForSemaphore(inType, d3dSemaphore->GetSemaphore());
+    }
+}
+
+void D3D12Device::AddQueueSignalSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore)
+{
+    D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(inSemaphore.GetReference());
+    if(d3dSemaphore && d3dSemaphore->IsValid())
+    {
+        d3dSemaphore->Reset();
+        AddQueueSignalSemaphore(inType, d3dSemaphore->GetSemaphore());
+    }
+}
+
+void D3D12Device::AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<D3D12Semaphore>& inSemaphore)
+{
+    if(inSemaphore->IsValid())
+    {
+        AddQueueWaitForSemaphore(inType, inSemaphore->GetSemaphore());
+    }
+}
+
+void D3D12Device::AddQueueSignalSemaphore(ERHICommandQueueType inType, RefCountPtr<D3D12Semaphore>& inSemaphore)
+{
+    if(inSemaphore->IsValid())
+    {
+        inSemaphore->Reset();
+        AddQueueSignalSemaphore(inType, inSemaphore->GetSemaphore());
+    }
+}
+
+void D3D12Device::AddQueueWaitForSemaphore(ERHICommandQueueType inType, ID3D12Fence* inSemaphore)
+{
+    std::vector<ID3D12Fence*>& waitForSemaphores = m_WaitForSemaphores[static_cast<uint32_t>(inType)];
+    waitForSemaphores.push_back(inSemaphore);
+}
+
+void D3D12Device::AddQueueSignalSemaphore(ERHICommandQueueType inType, ID3D12Fence* inSemaphore)
+{
+    std::vector<ID3D12Fence*>& signalSemaphores = m_SignalSemaphores[static_cast<uint32_t>(inType)];
+    signalSemaphores.push_back(inSemaphore);
+}
+
+void D3D12Device::ExecuteCommandList(const RefCountPtr<RHICommandList>& inCommandList, const RefCountPtr<RHIFence>& inSignalFence)
 {
     D3D12CommandList* commandList = CheckCast<D3D12CommandList*>(inCommandList.GetReference());
     if(commandList && commandList->IsValid())
@@ -187,30 +243,26 @@ void D3D12Device::ExecuteCommandList(const RefCountPtr<RHICommandList>& inComman
             queue->Signal(fence, FENCE_COMPLETED_VALUE);
         }
 
-        if(inWaitForSemaphores && !inWaitForSemaphores->empty())
+        std::vector<ID3D12Fence*>& waitForSemaphores = m_WaitForSemaphores[static_cast<uint32_t>(inCommandList->GetQueueType())];
+        if(!waitForSemaphores.empty())
         {
-            for(const auto& waitSemaphore : *inWaitForSemaphores)
+            for(const auto& waitSemaphore : waitForSemaphores)
             {
-                D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(waitSemaphore.GetReference());
-                if(d3dSemaphore && d3dSemaphore->IsValid())
-                {
-                    queue->Wait(d3dSemaphore->GetSemaphore(), FENCE_COMPLETED_VALUE);
-                }
+                queue->Wait(waitSemaphore, FENCE_COMPLETED_VALUE);
             }
         }
 
-        if(inSignalSemaphores && !inSignalSemaphores->empty())
+        std::vector<ID3D12Fence*>& signalSemaphores = m_SignalSemaphores[static_cast<uint32_t>(inCommandList->GetQueueType())];
+        if(!signalSemaphores.empty())
         {
-            for(const auto& signalSemaphore : *inSignalSemaphores)
+            for(const auto& signalSemaphore : signalSemaphores)
             {
-                D3D12Semaphore* d3dSemaphore = CheckCast<D3D12Semaphore*>(signalSemaphore.GetReference());
-                if(d3dSemaphore && d3dSemaphore->IsValid())
-                {
-                    d3dSemaphore->Reset();
-                    queue->Signal(d3dSemaphore->GetSemaphore(), FENCE_COMPLETED_VALUE);
-                }
+                queue->Signal(signalSemaphore, FENCE_COMPLETED_VALUE);
             }
         }
+
+        signalSemaphores.clear();
+        waitForSemaphores.clear();
     }
 }
 
@@ -410,8 +462,7 @@ void D3D12Semaphore::Reset()
 {
     if(IsValid())
     {
-        m_CurrentFenceValue = FENCE_INITIAL_VALUE;
-        m_FenceHandle->Signal(m_CurrentFenceValue);
+        m_FenceHandle->Signal(0);
     }
 }
 

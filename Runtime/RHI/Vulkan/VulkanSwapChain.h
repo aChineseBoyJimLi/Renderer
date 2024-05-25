@@ -4,6 +4,7 @@
 #include "../RHISwapChain.h"
 
 class VulkanFence;
+class VulkanSemaphore;
 class VulkanSwapChain : public RHISwapChain
 {
 public:
@@ -40,4 +41,5 @@ private:
     std::vector<RefCountPtr<VulkanTexture>> m_BackBuffers;
     uint32_t m_CurrentBackBufferIndex;
     RefCountPtr<VulkanFence> m_ImageAvailableFence;
+    RefCountPtr<VulkanSemaphore> m_ImageAvailableSemaphore;
 };

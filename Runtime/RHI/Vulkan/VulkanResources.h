@@ -24,7 +24,7 @@ public:
     VkDeviceMemory GetHeap() const { return m_HeapHandle; }
     uint32_t GetMemoryTypeIndex() const { return m_MemoryTypeIndex; }
     bool IsEmpty() const override;
-    uint32_t GetTotalChunks() const { return m_TotalChunkNum; }
+    uint32_t GetTotalChunks() const override { return m_TotalChunkNum; }
     
 protected:
     void SetNameInternal() override;
@@ -67,6 +67,7 @@ public:
     size_t GetAllocSizeInByte() const override { return m_MemRequirements.size; }
     size_t GetAllocAlignment() const override { return m_MemRequirements.alignment; }
     VkBuffer GetBuffer() const { return m_BufferHandle; }
+    VkDescriptorBufferInfo GetDescriptorBufferInfo() const ;
     
     const bool IsVirtualBuffer;
     const bool IsManagedBuffer;
@@ -136,7 +137,7 @@ public:
 
     VulkanTextureState GetCurrentState(const RHITextureSubResource& inSubResource = RHITextureSubResource::All);
     void ChangeState(const VulkanTextureState& inAfterState, const RHITextureSubResource& inSubResource = RHITextureSubResource::All);
-
+    VkDescriptorImageInfo GetDescriptorImageInfo(ERHIBindingResourceType inViewType, const RHITextureSubResource& inSubResource = RHITextureSubResource::All);
     
     const bool IsVirtualTexture;
     const bool IsManagedTexture;
@@ -179,7 +180,7 @@ public:
     void Shutdown() override;
     bool IsValid() const override;
     const RHISamplerDesc& GetDesc() const override { return m_Desc; }
-    VkSampler GetSamplerHandle() const { return m_SamplerHandle; }
+    VkSampler GetSampler() const { return m_SamplerHandle; }
     
 protected:
     void SetNameInternal() override;
@@ -210,13 +211,26 @@ public:
     void BindTextureSRV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) override;
     void BindTextureUAV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture) override;
     void BindSampler(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHISampler>& inSampler) override;
+    void BindBufferSRVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer) override;
+    void BindBufferUAVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer) override;
+    void BindBufferCBVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer) override;
+    void BindTextureSRVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) override;
+    void BindTextureUAVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) override;
+    void BindSamplerArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHISampler>>& inSampler) override;
+    
     const RHIPipelineBindingLayout* GetLayout() const override { return m_Layout; }
+    uint32_t GetDescriptorSetsCount() const {return (uint32_t)m_DescriptorSet.size(); }
+    const VkDescriptorSet* GetDescriptorSets() const { return m_DescriptorSet.data(); }
 
 private:
     friend VulkanDevice;
     VulkanResourceSet(VulkanDevice& inDevice, const RHIPipelineBindingLayout* inLayout);
     void ShutdownInternal();
-
+    void BindBuffer(ERHIBindingResourceType inViewType, uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIBuffer>& inBuffer);
+    void BindTexture(ERHIBindingResourceType inViewType, uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture);
+    void BindBufferArray(ERHIBindingResourceType inViewType, uint32_t inRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer);
+    void BindTextureArray(ERHIBindingResourceType inViewType, uint32_t inRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTexture);
+    
     VulkanDevice& m_Device;
     const RHIPipelineBindingLayout* m_Layout;
     const VulkanPipelineBindingLayout* m_LayoutVulkan;

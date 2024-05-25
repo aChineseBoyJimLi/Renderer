@@ -9,6 +9,7 @@ struct VulkanGraphicsPipelineContext
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkFramebuffer frameBuffer = VK_NULL_HANDLE;
+    VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
     void Clear()
     {

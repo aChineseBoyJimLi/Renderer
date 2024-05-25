@@ -181,6 +181,121 @@ void D3D12ResourceSet::BindTextureSRV(uint32_t inRegister, uint32_t inSpace, con
     }
 }
 
+void D3D12ResourceSet::BindBufferSRVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer)
+{
+    if(!IsValid() || inBuffer.empty())
+        return;
+    
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles(inBuffer.size());
+    for(uint32_t i = 0; i < inBuffer.size(); ++i)
+    {
+        D3D12Buffer* buffer = CheckCast<D3D12Buffer*>(inBuffer[i].GetReference());
+        if(!buffer->TryGetSRVHandle(handles[i]))
+        {
+            if(!buffer->CreateSRV(handles[i]))
+            {
+                return;
+            }
+        }
+    }
+    BindResourceArray(ERHIResourceViewType::SRV, inBaseRegister, inSpace, handles);
+}
+
+void D3D12ResourceSet::BindBufferUAVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer)
+{
+    if(!IsValid() || inBuffer.empty())
+        return;
+    
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles(inBuffer.size());
+    for(uint32_t i = 0; i < inBuffer.size(); ++i)
+    {
+        D3D12Buffer* buffer = CheckCast<D3D12Buffer*>(inBuffer[i].GetReference());
+        if(!buffer->TryGetUAVHandle(handles[i]))
+        {
+            if(!buffer->CreateUAV(handles[i]))
+            {
+                return;
+            }
+        }
+    }
+    BindResourceArray(ERHIResourceViewType::UAV, inBaseRegister, inSpace, handles);
+}
+
+void D3D12ResourceSet::BindBufferCBVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHIBuffer>>& inBuffer)
+{
+    if(!IsValid() || inBuffer.empty())
+        return;
+    
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles(inBuffer.size());
+    for(uint32_t i = 0; i < inBuffer.size(); ++i)
+    {
+        D3D12Buffer* buffer = CheckCast<D3D12Buffer*>(inBuffer[i].GetReference());
+        if(!buffer->TryGetCBVHandle(handles[i]))
+        {
+            if(!buffer->CreateCBV(handles[i]))
+            {
+                return;
+            }
+        }
+    }
+    BindResourceArray(ERHIResourceViewType::CBV, inBaseRegister, inSpace, handles);
+}
+
+void D3D12ResourceSet::BindTextureSRVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures)
+{
+    if(!IsValid() || inTextures.empty())
+        return;
+    
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles(inTextures.size());
+    for(uint32_t i = 0; i < inTextures.size(); ++i)
+    {
+        D3D12Texture* texture = CheckCast<D3D12Texture*>(inTextures[i].GetReference());
+        if(!texture->TryGetSRVHandle(handles[i]))
+        {
+            if(!texture->CreateSRV(handles[i]))
+            {
+                return;
+            }
+        }
+    }
+    BindResourceArray(ERHIResourceViewType::SRV, inBaseRegister, inSpace, handles);
+}
+
+void D3D12ResourceSet::BindTextureUAVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures)
+{
+    if(!IsValid() || inTextures.empty())
+        return;
+    
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles(inTextures.size());
+    for(uint32_t i = 0; i < inTextures.size(); ++i)
+    {
+        D3D12Texture* texture = CheckCast<D3D12Texture*>(inTextures[i].GetReference());
+        if(!texture->TryGetUAVHandle(handles[i]))
+        {
+            if(!texture->CreateUAV(handles[i]))
+            {
+                return;
+            }
+        }
+    }
+    BindResourceArray(ERHIResourceViewType::UAV, inBaseRegister, inSpace, handles);
+}
+
+void D3D12ResourceSet::BindSamplerArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHISampler>>& inSampler)
+{
+    if(!IsValid() || inSampler.empty())
+        return;
+    
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles(inSampler.size());
+    for(uint32_t i = 0; i < inSampler.size(); ++i)
+    {
+        D3D12Sampler* sampler = CheckCast<D3D12Sampler*>(inSampler[i].GetReference());
+        handles[i] = sampler->GetHandle();
+    }
+    BindResourceArray(ERHIResourceViewType::UAV, inBaseRegister, inSpace, handles);
+}
+
+
 void D3D12ResourceSet::BindTextureUAV(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHITexture>& inTexture)
 {
     D3D12Texture* texture = CheckCast<D3D12Texture*>(inTexture.GetReference());
@@ -213,32 +328,35 @@ void D3D12ResourceSet::BindResource(ERHIResourceViewType inViewType, uint32_t in
     for(uint32_t i = 0; i < m_RootArguments.size(); ++i)
     {
         D3D12ResourceArgument& argument = m_RootArguments[i];
-        if(argument.ViewType == inViewType)
+        if(argument.ViewType == inViewType && argument.NumDescriptors == 1 && argument.BaseRegister == inRegister && argument.Space == inSpace)
         {
-            if(argument.NumDescriptors == 1 && argument.BaseRegister == inRegister && argument.Space == inSpace)
+            if(argument.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
             {
-                if(argument.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
-                {
-                    ShaderVisibleDescriptorRange& range = m_AllocatedDescriptorRanges[argument.ShaderVisibleDescriptorRangeIndex];
-                    m_Device.GetDescriptorManager().CopyDescriptors(range.Heap, 1, range.Slot, cpuDescriptorHandle);
-                    break;
-                }
-                else
-                {
-                    argument.GpuAddress = address;
-                    break;
-                }
+                ShaderVisibleDescriptorRange& range = m_AllocatedDescriptorRanges[argument.ShaderVisibleDescriptorRangeIndex];
+                m_Device.GetDescriptorManager().CopyDescriptors(range.Heap, 1, range.Slot, cpuDescriptorHandle);
             }
-            else if(argument.NumDescriptors > 1 && argument.BaseRegister <= inRegister && inRegister < argument.BaseRegister + argument.NumDescriptors && argument.Space == inSpace)
+            else
             {
-                if(argument.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
-                {
-                    ShaderVisibleDescriptorRange& range = m_AllocatedDescriptorRanges[argument.ShaderVisibleDescriptorRangeIndex];
-                    uint32_t slotOffset = inRegister - argument.BaseRegister;
-                    m_Device.GetDescriptorManager().CopyDescriptors(range.Heap, 1, range.Slot + slotOffset, cpuDescriptorHandle);
-                    break;
-                }
+                argument.GpuAddress = address;
             }
+            break;
+        }
+    }
+}
+
+void D3D12ResourceSet::BindResourceArray(ERHIResourceViewType inViewType, uint32_t inBaseRegister, uint32_t inSpace, const std::vector<D3D12_CPU_DESCRIPTOR_HANDLE>& cpuDescriptorHandles)
+{
+    for(uint32_t i = 0; i < m_RootArguments.size(); ++i)
+    {
+        D3D12ResourceArgument& argument = m_RootArguments[i];
+        if(argument.ViewType == inViewType && argument.BaseRegister == inBaseRegister && argument.NumDescriptors >= cpuDescriptorHandles.size()  && argument.Space == inSpace)
+        {
+            for(uint32_t i = 0; i < cpuDescriptorHandles.size(); i++)
+            {
+                ShaderVisibleDescriptorRange& range = m_AllocatedDescriptorRanges[argument.ShaderVisibleDescriptorRangeIndex];
+                m_Device.GetDescriptorManager().CopyDescriptors(range.Heap, 1, range.Slot + i, cpuDescriptorHandles[i]);
+            }
+            break;
         }
     }
 }
