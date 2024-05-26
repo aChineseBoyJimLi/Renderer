@@ -20,10 +20,11 @@ add_executable(${project} WIN32
     ${SOURCES}
 )
 
-add_dependencies(${project} Shaders DirectXMesh DirectXTex)
+add_dependencies(${project} Shaders DirectXMesh DirectXTex imgui)
 set_target_properties(${project} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}")
 
 target_link_libraries(${project} PUBLIC
+    imgui
     d3d
     glm
     stb

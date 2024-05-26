@@ -18,3 +18,21 @@ target_include_directories(assimp INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/assimp/i
 target_link_directories(assimp INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/assimp/lib)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assimp/lib/assimp-vc143-mt.dll DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG})
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assimp/lib/assimp-vc143-mt.dll DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE})
+
+
+set(imgui_srcs
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imconfig.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_draw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_tables.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_widgets.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_internal.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imstb_rectpack.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imstb_textedit.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imstb_truetype.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_demo.cpp)
+
+add_library(imgui STATIC ${imgui_srcs})
+target_include_directories(imgui INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+set_target_properties(imgui PROPERTIES FOLDER "ThirdParty")

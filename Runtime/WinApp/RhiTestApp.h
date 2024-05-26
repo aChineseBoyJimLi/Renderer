@@ -4,8 +4,6 @@
 #include "../RHI/RHI.h"
 #include "AssetsManager.h"
 
-
-
 class RhiTestApp : public Win32Base
 {
 public:
