@@ -96,7 +96,6 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////
 /// VulkanTexture
 ///////////////////////////////////////////////////////////////////////////////////
-
 struct VulkanTextureState
 {
     VkAccessFlags AccessFlags;
@@ -124,7 +123,7 @@ public:
     uint32_t GetMemTypeFilter()  const override { return m_MemRequirements.memoryTypeBits; }
     size_t GetAllocSizeInByte() const override { return m_MemRequirements.size; }
     size_t GetAllocAlignment() const override { return m_MemRequirements.alignment; }
-    VkImage GetTextureHandle() const { return m_TextureHandle; }
+    VkImage GetTexture() const { return m_TextureHandle; }
     bool CreateRTV(VkImageView& outHandle, const RHITextureSubResource& inSubResource = RHITextureSubResource::All);
     bool CreateDSV(VkImageView& outHandle, const RHITextureSubResource& inSubResource = RHITextureSubResource::All);
     bool CreateSRV(VkImageView& outHandle, const RHITextureSubResource& inSubResource = RHITextureSubResource::All);
@@ -195,6 +194,50 @@ private:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
+/// D3D12AccelerationStructure
+///////////////////////////////////////////////////////////////////////////////////
+class VulkanAccelerationStructure : public RHIAccelerationStructure
+{
+public:
+    ~VulkanAccelerationStructure() override;
+    bool Init() override;
+    void Shutdown() override;
+    bool IsValid() const override;
+    const RHIRayTracingGeometryDesc* GetGeometryDesc() const override { return m_GeometryDesc.data(); }
+    const RHIRayTracingInstanceDesc* GetInstanceDesc() const override { return m_InstanceDesc.data(); }
+    size_t GetGeometryDescCount() const override { return m_GeometryDesc.size(); }
+    size_t GetInstanceDescCount() const override { return m_GeometryDesc.size(); }
+    bool IsTopLevel() const override { return m_IsTopLevel; }
+    bool IsBuilt() const override { return m_IsBuilt; }   
+    VkAccelerationStructureKHR GetAccelerationStructure() const { return m_AccelerationStructure; }
+    RefCountPtr<RHIBuffer> GetScratchBuffer() const override;
+    void Build(VkCommandBuffer inCmdBuffer, RefCountPtr<RHIBuffer>& inBuffer);
+    
+protected:
+    void SetNameInternal() override;
+
+private:
+    friend VulkanDevice;
+    VulkanAccelerationStructure(VulkanDevice& inDevice, const std::vector<RHIRayTracingGeometryDesc>& inDesc);
+    VulkanAccelerationStructure(VulkanDevice& inDevice, const std::vector<RHIRayTracingInstanceDesc>& inDesc);
+    void ShutdownInternal();
+    bool InitBottomLevel();
+    bool InitTopLevel();
+    
+    VulkanDevice& m_Device;
+    std::vector<RHIRayTracingGeometryDesc> m_GeometryDesc;
+    std::vector<RHIRayTracingInstanceDesc> m_InstanceDesc;
+    const bool m_IsTopLevel;
+    bool m_IsBuilt;
+    RefCountPtr<VulkanBuffer> m_InstanceBuffer;
+    RefCountPtr<VulkanBuffer> m_AccelerationStructureBuffer;
+    VkAccelerationStructureKHR m_AccelerationStructure;
+    VkAccelerationStructureBuildSizesInfoKHR m_BuildInfo;
+    std::vector<VkAccelerationStructureGeometryKHR> m_GeometryDescVulkan;
+    std::vector<uint32_t> m_GeometryPrimCount;
+};
+
+///////////////////////////////////////////////////////////////////////////////////
 /// VulkanResourceSet
 ///////////////////////////////////////////////////////////////////////////////////
 class VulkanResourceSet : public RHIResourceSet
@@ -217,6 +260,7 @@ public:
     void BindTextureSRVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) override;
     void BindTextureUAVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) override;
     void BindSamplerArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHISampler>>& inSampler) override;
+    void BindAccelerationStructure(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIAccelerationStructure>& inAccelerationStructure) override;
     
     const RHIPipelineBindingLayout* GetLayout() const override { return m_Layout; }
     uint32_t GetDescriptorSetsCount() const {return (uint32_t)m_DescriptorSet.size(); }

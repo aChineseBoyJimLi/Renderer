@@ -448,4 +448,14 @@ namespace RHI::D3D12
         }
         return ERHIResourceViewType::SRV;    
     }
+
+    D3D12_RAYTRACING_GEOMETRY_FLAGS ConvertGeometryFlags(ERHIRayTracingGeometryFlags inFlags)
+    {
+        D3D12_RAYTRACING_GEOMETRY_FLAGS flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+        if((inFlags & ERHIRayTracingGeometryFlags::Opaque) == ERHIRayTracingGeometryFlags::Opaque)
+            flags |=  D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+        if((inFlags & ERHIRayTracingGeometryFlags::NoDuplicateAnyHitInvocation) == ERHIRayTracingGeometryFlags::NoDuplicateAnyHitInvocation)
+            flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
+        return flags;
+    }
 }

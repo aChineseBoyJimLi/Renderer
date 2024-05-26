@@ -2,7 +2,6 @@
 
 #include "RHIDefinitions.h"
 
-class RHICommandList;
 class RHIPipelineBindingLayout;
 class RHIResourceHeap;
 
@@ -58,25 +57,24 @@ struct RHIBufferDesc
         return desc;
     }
     
-
-    static RHIBufferDesc VertexBuffer(uint64_t inSize, uint64_t inStride)
+    static RHIBufferDesc VertexBuffer(uint64_t inSize, uint64_t inStride, bool isAccelerationStructureBuildInput = false)
     {
         RHIBufferDesc desc;
         desc.Size = inSize;
         desc.Stride = inStride;
         desc.CpuAccess = ERHICpuAccessMode::None;
-        desc.Usages = ERHIBufferUsage::VertexBuffer;
+        desc.Usages = isAccelerationStructureBuildInput ? ERHIBufferUsage::AccelerationStructureBuildInput : ERHIBufferUsage::VertexBuffer;
         return desc;
     }
 
-    static RHIBufferDesc IndexBuffer(uint64_t inSize, ERHIFormat inFormat)
+    static RHIBufferDesc IndexBuffer(uint64_t inSize, ERHIFormat inFormat, bool isAccelerationStructureBuildInput = false)
     {
         const RHIFormatInfo& formatInfo = RHI::GetFormatInfo(inFormat);
         RHIBufferDesc desc;
         desc.Size = inSize;
         desc.Format = inFormat;
         desc.CpuAccess = ERHICpuAccessMode::None;
-        desc.Usages = ERHIBufferUsage::IndexBuffer;
+        desc.Usages = isAccelerationStructureBuildInput ? ERHIBufferUsage::AccelerationStructureBuildInput : ERHIBufferUsage::IndexBuffer;
         desc.Stride = formatInfo.BytesPerBlock;
         return desc;
     }
@@ -89,7 +87,24 @@ struct RHIBufferDesc
         desc.Size = inSize;
         return desc;
     }
-    
+
+    static RHIBufferDesc AccelerationStructure(uint64_t inSize)
+    {
+        RHIBufferDesc desc;
+        desc.Size = inSize;
+        desc.CpuAccess = ERHICpuAccessMode::None;
+        desc.Usages = ERHIBufferUsage::AccelerationStructureStorage;
+        return desc;
+    }
+
+    static RHIBufferDesc ShaderTable(uint64_t inSize)
+    {
+        RHIBufferDesc desc;
+        desc.Size = inSize;
+        desc.CpuAccess = ERHICpuAccessMode::Write;
+        desc.Usages = ERHIBufferUsage::ShaderTable;
+        return desc;
+    }
 };
 
 struct RHIBufferSubRange
@@ -288,19 +303,35 @@ public:
 
 struct RHIRayTracingGeometryTriangleDesc
 {
-    RefCountPtr<RHIBuffer> VertexBuffer;
-    RefCountPtr<RHIBuffer> IndexBuffer;
+    // RefCountPtr<RHIBuffer> VertexBuffer;
+    // RefCountPtr<RHIBuffer> IndexBuffer;
+    RHIBuffer* VertexBuffer  = nullptr;
+    RHIBuffer* IndexBuffer  = nullptr;
     uint32_t VertexOffsetCount;
     uint32_t IndexOffsetCount;
     uint32_t VertexCount;
     uint32_t IndexCount;
+    uint32_t PrimCount;
 };
 
 struct RHIRayTracingGeometryAABBDesc
 {
-    RefCountPtr<RHIBuffer> Buffer;
-    uint32_t OffsetCount;
-    uint32_t Count;
+    // RefCountPtr<RHIBuffer> Buffer;
+    RHIBuffer* Buffer = nullptr;
+    uint32_t OffsetCount = 0;
+    uint32_t Count = 0;
+    uint32_t Stride = 0;
+};
+
+struct RHIRayTracingGeometryDesc
+{
+    ERHIRayTracingGeometryType Type = ERHIRayTracingGeometryType::Triangles;
+    ERHIRayTracingGeometryFlags Flags = ERHIRayTracingGeometryFlags::None;
+    union
+    {
+        RHIRayTracingGeometryTriangleDesc Triangles;
+        RHIRayTracingGeometryAABBDesc AABBs;
+    };
 };
 
 struct RHIRayTracingInstanceDesc
@@ -313,27 +344,21 @@ struct RHIRayTracingInstanceDesc
     RHIResourceGpuAddress* BLAS = nullptr;
 };
 
-struct RHIAccelerationStructureDesc
-{
-    std::vector<RHIRayTracingGeometryTriangleDesc> Triangles;
-    std::vector<RHIRayTracingGeometryAABBDesc> AABBs;
-    std::vector<RHIRayTracingInstanceDesc> Instances;
-    
-    ERHIRayTracingGeometryFlags Flags = ERHIRayTracingGeometryFlags::None;
-    ERHIRayTracingGeometryType Type = ERHIRayTracingGeometryType::Triangles;
-};
-
 class RHIAccelerationStructure : public RHIObject
 {
 public:
-    virtual const RHIAccelerationStructureDesc& GetDesc() const = 0;
-    virtual void Build(const RefCountPtr<RHICommandList>& inCmdList) = 0;
+    virtual const RHIRayTracingGeometryDesc* GetGeometryDesc() const = 0;
+    virtual const RHIRayTracingInstanceDesc* GetInstanceDesc() const = 0;
+    virtual RefCountPtr<RHIBuffer> GetScratchBuffer() const = 0;
+    virtual size_t GetGeometryDescCount() const = 0;
+    virtual size_t GetInstanceDescCount() const = 0;
+    virtual bool IsTopLevel() const = 0;
+    virtual bool IsBuilt() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
 /// RHIResourcesSet
 ///////////////////////////////////////////////////////////////////////////////////
-
 class RHIResourceSet : public RHIObject
 {
 public:
@@ -350,6 +375,6 @@ public:
     virtual void BindTextureSRVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) = 0;
     virtual void BindTextureUAVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) = 0;
     virtual void BindSamplerArray(uint32_t inRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHISampler>>& inSampler) = 0;
-    // virtual void BindAccelerationStructure(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIAccelerationStructure>& inAccelerationStructure) = 0;
+    virtual void BindAccelerationStructure(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIAccelerationStructure>& inAccelerationStructure) = 0;
 };
 

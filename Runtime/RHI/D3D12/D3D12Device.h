@@ -77,6 +77,8 @@ public:
     RefCountPtr<RHITexture> CreateTexture(const RHITextureDesc& inDesc, bool isVirtual = false) override;
     RefCountPtr<D3D12Texture> CreateTexture(const RHITextureDesc& inDesc, const Microsoft::WRL::ComPtr<ID3D12Resource>& inResource);
     RefCountPtr<RHISampler> CreateSampler(const RHISamplerDesc& inDesc) override;
+    RefCountPtr<RHIAccelerationStructure> CreateBottomLevelAccelerationStructure(const std::vector<RHIRayTracingGeometryDesc>& inDesc) override;
+    RefCountPtr<RHIAccelerationStructure> CreateTopLevelAccelerationStructure(const std::vector<RHIRayTracingInstanceDesc>& inDesc) override;
     RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) override;
     RefCountPtr<RHIResourceSet> CreateResourceSet(const RHIPipelineBindingLayout* inLayout) override;
     void AddQueueWaitForSemaphore(ERHICommandQueueType inType, RefCountPtr<RHISemaphore>& inSemaphore) override;

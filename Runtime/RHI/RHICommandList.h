@@ -55,5 +55,5 @@ public:
     virtual void DispatchIndirect(RefCountPtr<RHIBuffer>& indirectCommands, uint32_t count, size_t commandsBufferOffset = 0) = 0;
     virtual void DispatchMesh(uint32_t threadGroupX, uint32_t threadGroupY, uint32_t threadGroupZ) = 0;
     virtual void DispatchMeshIndirect(RefCountPtr<RHIBuffer>& indirectCommands, uint32_t count, size_t commandsBufferOffset = 0) = 0;
-    virtual void DispatchRays(uint32_t width, uint32_t height, uint32_t depth, RefCountPtr<RHIShaderTable>& shaderTable) = 0;
+    virtual void DispatchRays(uint32_t width, uint32_t height, uint32_t depth, const RHIShaderTable& shaderTable) = 0;
 };

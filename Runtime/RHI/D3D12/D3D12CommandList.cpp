@@ -477,7 +477,7 @@ void D3D12CommandList::DispatchMeshIndirect(RefCountPtr<RHIBuffer>& indirectComm
     }
 }
 
-void D3D12CommandList::DispatchRays(uint32_t width, uint32_t height, uint32_t depth, RefCountPtr<RHIShaderTable>& shaderTable)
+void D3D12CommandList::DispatchRays(uint32_t width, uint32_t height, uint32_t depth, const RHIShaderTable& shaderTable)
 {
     if(IsValid() && !IsClosed())
     {
@@ -486,17 +486,17 @@ void D3D12CommandList::DispatchRays(uint32_t width, uint32_t height, uint32_t de
         rayDesc.Width = width;
         rayDesc.Height = height;
         rayDesc.Depth = depth;
-        rayDesc.RayGenerationShaderRecord.StartAddress = shaderTable->GetRayGenShaderEntry().StartAddress;
-        rayDesc.RayGenerationShaderRecord.SizeInBytes = shaderTable->GetRayGenShaderEntry().SizeInBytes;
-        rayDesc.HitGroupTable.StartAddress = shaderTable->GetHitGroupEntry().StartAddress;
-        rayDesc.HitGroupTable.SizeInBytes = shaderTable->GetHitGroupEntry().SizeInBytes;
-        rayDesc.HitGroupTable.StrideInBytes = shaderTable->GetHitGroupEntry().StrideInBytes;
-        rayDesc.MissShaderTable.StartAddress = shaderTable->GetMissShaderEntry().StartAddress;
-        rayDesc.MissShaderTable.SizeInBytes = shaderTable->GetMissShaderEntry().SizeInBytes;
-        rayDesc.MissShaderTable.StrideInBytes = shaderTable->GetMissShaderEntry().StrideInBytes;
-        rayDesc.CallableShaderTable.StartAddress = shaderTable->GetCallableShaderEntry().StartAddress;
-        rayDesc.CallableShaderTable.SizeInBytes = shaderTable->GetCallableShaderEntry().SizeInBytes;
-        rayDesc.CallableShaderTable.StrideInBytes = shaderTable->GetCallableShaderEntry().StrideInBytes;
+        rayDesc.RayGenerationShaderRecord.StartAddress = shaderTable.GetRayGenShaderEntry().StartAddress;
+        rayDesc.RayGenerationShaderRecord.SizeInBytes = shaderTable.GetRayGenShaderEntry().SizeInBytes;
+        rayDesc.HitGroupTable.StartAddress = shaderTable.GetHitGroupEntry().StartAddress;
+        rayDesc.HitGroupTable.SizeInBytes = shaderTable.GetHitGroupEntry().SizeInBytes;
+        rayDesc.HitGroupTable.StrideInBytes = shaderTable.GetHitGroupEntry().StrideInBytes;
+        rayDesc.MissShaderTable.StartAddress = shaderTable.GetMissShaderEntry().StartAddress;
+        rayDesc.MissShaderTable.SizeInBytes = shaderTable.GetMissShaderEntry().SizeInBytes;
+        rayDesc.MissShaderTable.StrideInBytes = shaderTable.GetMissShaderEntry().StrideInBytes;
+        rayDesc.CallableShaderTable.StartAddress = shaderTable.GetCallableShaderEntry().StartAddress;
+        rayDesc.CallableShaderTable.SizeInBytes = shaderTable.GetCallableShaderEntry().SizeInBytes;
+        rayDesc.CallableShaderTable.StrideInBytes = shaderTable.GetCallableShaderEntry().StrideInBytes;
         m_CmdListHandle->DispatchRays(&rayDesc);
     }
 }

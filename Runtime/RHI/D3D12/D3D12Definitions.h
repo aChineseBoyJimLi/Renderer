@@ -36,4 +36,5 @@ namespace RHI::D3D12
     void                        TranslateBlendState(const RHIBlendStateDesc& inState, D3D12_BLEND_DESC& outState);
     ERHIResourceViewType        ConvertRHIResourceViewType(D3D12_DESCRIPTOR_RANGE_TYPE inRangeType);
     ERHIResourceViewType        ConvertRHIResourceViewType(D3D12_ROOT_PARAMETER_TYPE inParameterType);
+    D3D12_RAYTRACING_GEOMETRY_FLAGS ConvertGeometryFlags(ERHIRayTracingGeometryFlags inFlags);
 }

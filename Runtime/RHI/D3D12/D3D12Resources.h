@@ -265,10 +265,37 @@ public:
     bool Init() override;
     void Shutdown() override;
     bool IsValid() const override;
+    const RHIRayTracingGeometryDesc* GetGeometryDesc() const override { return m_GeometryDesc.data(); }
+    const RHIRayTracingInstanceDesc* GetInstanceDesc() const override { return m_InstanceDesc.data(); }
+    size_t GetGeometryDescCount() const override { return m_GeometryDesc.size(); }
+    size_t GetInstanceDescCount() const override { return m_GeometryDesc.size(); }
+    bool IsTopLevel() const override { return m_IsTopLevel; }
+    bool IsBuilt() const override { return m_IsBuilt; }
+    RefCountPtr<D3D12Buffer> GetAccelerationStructure() { return m_AccelerationStructureBuffer; }
+    RefCountPtr<RHIBuffer> GetScratchBuffer() const override;
+    void Build(ID3D12GraphicsCommandList* inCmdList, RefCountPtr<RHIBuffer>& inScratchBuffer);
+
+protected:
+    void SetNameInternal() override;
     
 private:
-    RHIAccelerationStructureDesc m_Desc;
-    // Microsoft::WRL::ComPtr<ID3D12Resource>
+    friend D3D12Device;
+    D3D12AccelerationStructure(D3D12Device& inDevice, const std::vector<RHIRayTracingGeometryDesc>& inDesc);
+    D3D12AccelerationStructure(D3D12Device& inDevice, const std::vector<RHIRayTracingInstanceDesc>& inDesc);
+    void ShutdownInternal();
+    bool InitBottomLevel();
+    bool InitTopLevel();
+    
+    D3D12Device & m_Device;
+    std::vector<RHIRayTracingGeometryDesc> m_GeometryDesc;
+    std::vector<RHIRayTracingInstanceDesc> m_InstanceDesc;
+    const bool m_IsTopLevel;
+    bool m_IsBuilt;
+    RefCountPtr<D3D12Buffer> m_InstanceBuffer;
+    RefCountPtr<D3D12Buffer> m_AccelerationStructureBuffer;
+    std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> m_GeometryDescD3D;
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS m_BuildInfos;
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO m_PrebuildInfo;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -313,6 +340,8 @@ public:
     void BindTextureSRVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) override;
     void BindTextureUAVArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHITexture>>& inTextures) override;
     void BindSamplerArray(uint32_t inBaseRegister, uint32_t inSpace, const std::vector<RefCountPtr<RHISampler>>& inSampler) override;
+    void BindAccelerationStructure(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIAccelerationStructure>& inAccelerationStructure) override;
+    
     const RHIPipelineBindingLayout* GetLayout() const override { return m_Layout; }
     void SetGraphicsRootArguments(ID3D12GraphicsCommandList* inCmdList) const;
     void SetComputeRootArguments(ID3D12GraphicsCommandList* inCmdList) const;

@@ -322,9 +322,9 @@ void VulkanCommandList::CopyTexture(RefCountPtr<RHITexture>& dstTexture, RefCoun
         copyRegion.srcSubresource.baseArrayLayer = 0;
 
         vkCmdCopyImage(m_CmdBufferHandle
-            , texture1->GetTextureHandle()
+            , texture1->GetTexture()
             , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-            , texture0->GetTextureHandle()
+            , texture0->GetTexture()
             , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             , 1, &copyRegion);
 
@@ -371,9 +371,9 @@ void VulkanCommandList::CopyTexture(RefCountPtr<RHITexture>& dstTexture, const R
         copyRegion.srcSubresource.baseArrayLayer = srcSlice.ArraySlice;
         
         vkCmdCopyImage(m_CmdBufferHandle
-            , texture1->GetTextureHandle()
+            , texture1->GetTexture()
             , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-            , texture0->GetTextureHandle()
+            , texture0->GetTexture()
             , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             , 1, &copyRegion);
 
@@ -413,7 +413,7 @@ void VulkanCommandList::CopyBufferToTexture(RefCountPtr<RHITexture>& dstTexture,
         
         vkCmdCopyBufferToImage(m_CmdBufferHandle
             , buffer1->GetBuffer()
-            , texture0->GetTextureHandle()
+            , texture0->GetTexture()
             , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             , 1
             , &copyInfo);
@@ -451,7 +451,7 @@ void VulkanCommandList::CopyBufferToTexture(RefCountPtr<RHITexture>& dstTexture,
         
         vkCmdCopyBufferToImage(m_CmdBufferHandle
             , buffer1->GetBuffer()
-            , texture0->GetTextureHandle()
+            , texture0->GetTexture()
             , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             , 1
             , &copyInfo);
@@ -539,29 +539,29 @@ void VulkanCommandList::DispatchMeshIndirect(RefCountPtr<RHIBuffer>& indirectCom
     }
 }
 
-void VulkanCommandList::DispatchRays(uint32_t width, uint32_t height, uint32_t depth, RefCountPtr<RHIShaderTable>& shaderTable)
+void VulkanCommandList::DispatchRays(uint32_t width, uint32_t height, uint32_t depth, const RHIShaderTable& shaderTable)
 {
     if(IsValid() && !IsClosed())
     {
         VkStridedDeviceAddressRegionKHR rayGenEntry;
-        rayGenEntry.deviceAddress = shaderTable->GetRayGenShaderEntry().StartAddress;
-        rayGenEntry.size = shaderTable->GetRayGenShaderEntry().SizeInBytes;
-        rayGenEntry.stride = shaderTable->GetRayGenShaderEntry().StrideInBytes;
+        rayGenEntry.deviceAddress = shaderTable.GetRayGenShaderEntry().StartAddress;
+        rayGenEntry.size = shaderTable.GetRayGenShaderEntry().SizeInBytes;
+        rayGenEntry.stride = shaderTable.GetRayGenShaderEntry().StrideInBytes;
 
         VkStridedDeviceAddressRegionKHR hitGroupEntry;
-        hitGroupEntry.deviceAddress = shaderTable->GetHitGroupEntry().StartAddress;
-        hitGroupEntry.size = shaderTable->GetHitGroupEntry().SizeInBytes;
-        hitGroupEntry.stride = shaderTable->GetHitGroupEntry().StrideInBytes;
+        hitGroupEntry.deviceAddress = shaderTable.GetHitGroupEntry().StartAddress;
+        hitGroupEntry.size = shaderTable.GetHitGroupEntry().SizeInBytes;
+        hitGroupEntry.stride = shaderTable.GetHitGroupEntry().StrideInBytes;
 
         VkStridedDeviceAddressRegionKHR missEntry;
-        missEntry.deviceAddress = shaderTable->GetMissShaderEntry().StartAddress;
-        missEntry.size = shaderTable->GetMissShaderEntry().SizeInBytes;
-        missEntry.stride = shaderTable->GetMissShaderEntry().StrideInBytes;
+        missEntry.deviceAddress = shaderTable.GetMissShaderEntry().StartAddress;
+        missEntry.size = shaderTable.GetMissShaderEntry().SizeInBytes;
+        missEntry.stride = shaderTable.GetMissShaderEntry().StrideInBytes;
 
         VkStridedDeviceAddressRegionKHR callableEntry;
-        callableEntry.deviceAddress = shaderTable->GetCallableShaderEntry().StartAddress;
-        callableEntry.size = shaderTable->GetCallableShaderEntry().SizeInBytes;
-        callableEntry.stride = shaderTable->GetCallableShaderEntry().StrideInBytes;
+        callableEntry.deviceAddress = shaderTable.GetCallableShaderEntry().StartAddress;
+        callableEntry.size = shaderTable.GetCallableShaderEntry().SizeInBytes;
+        callableEntry.stride = shaderTable.GetCallableShaderEntry().StrideInBytes;
         
         m_Device.vkCmdTraceRaysKHR(m_CmdBufferHandle, &rayGenEntry, &missEntry, &hitGroupEntry, &callableEntry, width, height, depth);
     }
@@ -613,7 +613,7 @@ void VulkanCommandList::ResourceBarrier(RefCountPtr<RHITexture>& inResource , ER
             barrier.newLayout = RHI::Vulkan::ConvertImageLayout(inAfterState);
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.image = texture->GetTextureHandle();
+            barrier.image = texture->GetTexture();
             barrier.subresourceRange.aspectMask = RHI::Vulkan::GuessImageAspectFlags(desc.Format);
             barrier.subresourceRange.baseMipLevel = 0;
             barrier.subresourceRange.levelCount = desc.MipLevels;

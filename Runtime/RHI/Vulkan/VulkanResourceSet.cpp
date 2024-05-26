@@ -287,5 +287,27 @@ void VulkanResourceSet::BindSamplerArray(uint32_t inBaseRegister, uint32_t inSpa
     descriptorSetWriter.pImageInfo = samplerInfos.data();
     descriptorSetWriter.descriptorCount = (uint32_t)samplerInfos.size();
     vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorSetWriter, 0, nullptr);
-    
+}
+
+void VulkanResourceSet::BindAccelerationStructure(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIAccelerationStructure>& inAccelerationStructure)
+{
+    VulkanAccelerationStructure* accelerationStructure = CheckCast<VulkanAccelerationStructure*>(inAccelerationStructure.GetReference());
+    if(IsValid() && accelerationStructure && accelerationStructure->IsValid() && accelerationStructure->IsTopLevel())
+    {
+        VkAccelerationStructureKHR tlas = accelerationStructure->GetAccelerationStructure();
+        VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo{};
+        descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+        descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
+        descriptorAccelerationStructureInfo.pAccelerationStructures = &tlas;
+        descriptorAccelerationStructureInfo.pNext = nullptr;
+
+        VkWriteDescriptorSet descriptorSetWriter{};
+        descriptorSetWriter.pNext = &descriptorAccelerationStructureInfo;
+        descriptorSetWriter.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorSetWriter.dstSet = m_DescriptorSet[inSpace];
+        descriptorSetWriter.dstBinding =  RHI::Vulkan::GetBindingSlot(ERHIRegisterType::ShaderResource, inRegister); 
+        descriptorSetWriter.descriptorCount = 1;
+        descriptorSetWriter.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+        vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorSetWriter, 0, nullptr);
+    }
 }

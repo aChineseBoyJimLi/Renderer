@@ -1,5 +1,6 @@
 #include "VulkanPipelineState.h"
 #include "VulkanDevice.h"
+#include "VulkanResources.h"
 #include "../../Core/Log.h"
 #include <map>
 

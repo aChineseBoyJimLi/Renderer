@@ -646,4 +646,14 @@ namespace RHI::Vulkan
             return inRegisterSlot;
         }
     }
+
+    VkGeometryFlagsKHR ConvertGeometryFlags(ERHIRayTracingGeometryFlags inFlags)
+    {
+        VkGeometryFlagsKHR flags = 0;
+        if((inFlags & ERHIRayTracingGeometryFlags::Opaque) == ERHIRayTracingGeometryFlags::Opaque)
+            flags |=  VK_GEOMETRY_OPAQUE_BIT_KHR;
+        if((inFlags & ERHIRayTracingGeometryFlags::NoDuplicateAnyHitInvocation) == ERHIRayTracingGeometryFlags::NoDuplicateAnyHitInvocation)
+            flags |= VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR;
+        return flags;
+    }
 }

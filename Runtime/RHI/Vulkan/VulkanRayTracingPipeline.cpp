@@ -1,12 +1,13 @@
 #include "VulkanPipelineState.h"
 #include "VulkanDevice.h"
+#include "VulkanResources.h"
 #include "../../Core/Log.h"
 #include "../../Core/Templates.h"
 
 VulkanRayTracingPipeline::VulkanRayTracingPipeline(VulkanDevice& inDevice, const RHIRayTracingPipelineDesc& inDesc)
     : m_Device(inDevice)
     , m_Desc(inDesc)
-    , m_ShaderTable(nullptr)
+    , m_ShaderTable()
     , m_PipelineState(VK_NULL_HANDLE)
     , m_PipelineProperties{}
 {
@@ -37,6 +38,7 @@ bool VulkanRayTracingPipeline::Init()
     VkShaderModule shaderModule = VK_NULL_HANDLE;
 
     // RayGen
+    size_t ragGenShaderCount = 1;
     if(!m_Desc.RayGenShaderGroup.RayGenShader || !m_Desc.RayGenShaderGroup.RayGenShader->IsValid())
     {
         Log::Error("[Vulkan] The rayGen shader is invalid");
@@ -62,6 +64,7 @@ bool VulkanRayTracingPipeline::Init()
     });
 
     // RayMiss
+    size_t missShaderCount = m_Desc.MissShaderGroups.size();
     for(uint32_t i = 0; i < m_Desc.MissShaderGroups.size(); i++)
     {
         const RHIMissShaderGroup& missShaderGroup = m_Desc.MissShaderGroups[i];
@@ -91,7 +94,8 @@ bool VulkanRayTracingPipeline::Init()
     }
 
     // HitGroup
-    for(uint32_t i = 0; i < m_Desc.HitGroups.size(); i++)
+    size_t hitGroupCount = m_Desc.HitGroups.size();
+    for(uint32_t i = 0; i < hitGroupCount; i++)
     {
         const RHIHitGroup& hitGroup = m_Desc.HitGroups[i];
         uint32_t clsShaderIndex = 0, anyShaderIndex = 0, interShaderIndiex = 0;
@@ -171,6 +175,55 @@ bool VulkanRayTracingPipeline::Init()
         OUTPUT_VULKAN_FAILED_RESULT(result)
         return false;
     }
+
+    // Create Shader Table
+    m_PipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+    VkPhysicalDeviceProperties2 deviceProperties2{};
+    deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    deviceProperties2.pNext = &m_PipelineProperties;
+    vkGetPhysicalDeviceProperties2(m_Device.GetPhysicalDevice(), &deviceProperties2);
+
+    const uint32_t handleSizeAligned = Align(m_PipelineProperties.shaderGroupHandleSize, m_PipelineProperties.shaderGroupHandleAlignment); // shader group handle size
+    
+    const uint32_t shaderTableItemAlignedSize = Align(handleSizeAligned, m_PipelineProperties.shaderGroupBaseAlignment); // shader table items size
+    const uint32_t groupCount = (uint32_t)m_ShaderGroups.size();
+    
+    const uint32_t shaderTableSize = groupCount * shaderTableItemAlignedSize;
+    const uint32_t shaderGroupHandlesSize = groupCount * handleSizeAligned;
+
+    std::vector<uint8_t> shaderHandleStorage(shaderGroupHandlesSize);
+    result = m_Device.vkGetRayTracingShaderGroupHandlesKHR(m_Device.GetDevice(), m_PipelineState, 0, groupCount, shaderGroupHandlesSize, shaderHandleStorage.data());
+    if(result != VK_SUCCESS)
+    {
+        Log::Error("Failed to get ray tracing shader group handles");
+        return false;
+    }
+
+    RHIBufferDesc shaderTableDesc = RHIBufferDesc::ShaderTable(shaderTableSize);
+    m_ShaderTable.m_ShaderTableBuffer = m_Device.CreateVulkanBuffer(shaderTableDesc);
+
+    const uint8_t* shaderHandleStorageData = shaderHandleStorage.data();
+    for(uint32_t i = 0; i < groupCount; ++i)
+    {
+        m_ShaderTable.m_ShaderTableBuffer->WriteData(shaderHandleStorageData + i * handleSizeAligned, handleSizeAligned, i * shaderTableItemAlignedSize);
+    }
+    
+    RHIResourceGpuAddress shaderTableAddress = m_ShaderTable.m_ShaderTableBuffer->GetGpuAddress();
+    size_t shaderTableIndex = 0;
+    
+    m_ShaderTable.m_RayGenerationShaderRecord.StartAddress = shaderTableAddress;
+    m_ShaderTable.m_RayGenerationShaderRecord.StrideInBytes = shaderTableItemAlignedSize;
+    m_ShaderTable.m_RayGenerationShaderRecord.SizeInBytes = shaderTableItemAlignedSize;
+    shaderTableIndex += ragGenShaderCount;
+
+    m_ShaderTable.m_MissShaderRecord.StartAddress = shaderTableAddress + shaderTableIndex * shaderTableItemAlignedSize;
+    m_ShaderTable.m_MissShaderRecord.StrideInBytes = shaderTableItemAlignedSize;
+    m_ShaderTable.m_MissShaderRecord.SizeInBytes = missShaderCount * shaderTableItemAlignedSize;
+    shaderTableIndex += missShaderCount;
+
+    m_ShaderTable.m_HitGroupRecord.StartAddress = shaderTableAddress + shaderTableIndex * shaderTableItemAlignedSize;
+    m_ShaderTable.m_HitGroupRecord.StrideInBytes = shaderTableItemAlignedSize;
+    m_ShaderTable.m_HitGroupRecord.SizeInBytes = hitGroupCount * shaderTableItemAlignedSize;
     
     return true;
 }
@@ -210,3 +263,9 @@ void VulkanRayTracingPipeline::SetNameInternal()
         m_Device.SetDebugName(VK_OBJECT_TYPE_PIPELINE, (uint64_t)m_PipelineState, m_Name);
     }
 }
+
+VulkanShaderTable::~VulkanShaderTable()
+{
+    m_ShaderTableBuffer.SafeRelease();
+}
+

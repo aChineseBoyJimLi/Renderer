@@ -434,3 +434,22 @@ void D3D12ResourceSet::SetComputeRootArguments(ID3D12GraphicsCommandList* inCmdL
         Log::Error("[D3D12] ResourceSet is invalid");
     }
 }
+
+void D3D12ResourceSet::BindAccelerationStructure(uint32_t inRegister, uint32_t inSpace, const RefCountPtr<RHIAccelerationStructure>& inAccelerationStructure)
+{
+    D3D12AccelerationStructure* accelerationStructure = CheckCast<D3D12AccelerationStructure*>(inAccelerationStructure.GetReference());
+    if(IsValid() && accelerationStructure && accelerationStructure->IsValid() && accelerationStructure->IsTopLevel())
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle;
+        RefCountPtr<D3D12Buffer> buffer = accelerationStructure->GetAccelerationStructure();
+        if(!buffer->TryGetSRVHandle(cpuDescriptorHandle))
+        {
+            if(!buffer->CreateSRV(cpuDescriptorHandle))
+            {
+                return;
+            }
+        }
+        RHIResourceGpuAddress address = buffer->GetGpuAddress();
+        BindResource(ERHIResourceViewType::SRV, inRegister, inSpace, cpuDescriptorHandle, address);
+    }
+}

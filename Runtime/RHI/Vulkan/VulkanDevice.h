@@ -4,6 +4,7 @@
 #include "../RHIDevice.h"
 #include "VulkanDefinitions.h"
 
+class VulkanBuffer;
 class VulkanTexture;
 
 class VulkanFence : public RHIFence
@@ -70,9 +71,12 @@ public:
     RefCountPtr<RHIGraphicsPipeline> CreatePipeline(const RHIGraphicsPipelineDesc& inDesc) override;
     RefCountPtr<RHIResourceHeap> CreateResourceHeap(const RHIResourceHeapDesc& inDesc) override;
     RefCountPtr<RHIBuffer> CreateBuffer(const RHIBufferDesc& inDesc, bool isVirtual = false) override;
+    RefCountPtr<VulkanBuffer> CreateVulkanBuffer(const RHIBufferDesc& inDesc, bool isVirtual = false);
     RefCountPtr<RHITexture> CreateTexture(const RHITextureDesc& inDesc, bool isVirtual = false) override;
     RefCountPtr<VulkanTexture> CreateTexture(const RHITextureDesc& inDesc, VkImage inImage);
     RefCountPtr<RHISampler> CreateSampler(const RHISamplerDesc& inDesc) override;
+    RefCountPtr<RHIAccelerationStructure> CreateBottomLevelAccelerationStructure(const std::vector<RHIRayTracingGeometryDesc>& inDesc) override;
+    RefCountPtr<RHIAccelerationStructure> CreateTopLevelAccelerationStructure(const std::vector<RHIRayTracingInstanceDesc>& inDesc) override;
     RefCountPtr<RHIFrameBuffer> CreateFrameBuffer(const RHIFrameBufferDesc& inDesc) override;
     RefCountPtr<RHIResourceSet> CreateResourceSet(const RHIPipelineBindingLayout* inLayout) override;
 

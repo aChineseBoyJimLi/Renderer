@@ -3,6 +3,7 @@
 #include "VulkanDefinitions.h"
 #include "../RHIPipelineState.h"
 
+class VulkanBuffer;
 class VulkanTexture;
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -182,20 +183,18 @@ class VulkanShaderTable : public RHIShaderTable
 {
 public:
     ~VulkanShaderTable() override;
-    const RHIShaderTableEntry& GetRayGenShaderEntry() const { return m_RayGenerationShaderRecord; }
-    const RHIShaderTableEntry& GetMissShaderEntry() const { return m_MissShaderRecord; }
-    const RHIShaderTableEntry& GetHitGroupEntry() const { return m_HitGroupRecord; }
-    const RHIShaderTableEntry& GetCallableShaderEntry() const { return m_CallableShaderRecord; }
+    const RHIShaderTableEntry& GetRayGenShaderEntry() const override { return m_RayGenerationShaderRecord; }
+    const RHIShaderTableEntry& GetMissShaderEntry() const  override { return m_MissShaderRecord; }
+    const RHIShaderTableEntry& GetHitGroupEntry() const override { return m_HitGroupRecord; }
+    const RHIShaderTableEntry& GetCallableShaderEntry() const override { return m_CallableShaderRecord; }
     
 private:
-    friend class D3D12RayTracingPipeline;
-    VkBuffer                                            m_ShaderTableBuffer;
-    VkDeviceMemory                                      m_ShaderTableBufferMemory;
-    
-    RHIShaderTableEntry                                    m_RayGenerationShaderRecord;
-    RHIShaderTableEntry                                    m_MissShaderRecord;
-    RHIShaderTableEntry                                    m_HitGroupRecord;
-    RHIShaderTableEntry                                    m_CallableShaderRecord;
+    friend class VulkanRayTracingPipeline;
+    RefCountPtr<VulkanBuffer> m_ShaderTableBuffer = nullptr;
+    RHIShaderTableEntry m_RayGenerationShaderRecord{};
+    RHIShaderTableEntry m_MissShaderRecord{};
+    RHIShaderTableEntry m_HitGroupRecord{};
+    RHIShaderTableEntry m_CallableShaderRecord{};
 };
 
 class VulkanRayTracingPipeline : public RHIRayTracingPipeline
@@ -206,6 +205,7 @@ public:
     void Shutdown() override;
     bool IsValid() const override;
     const RHIRayTracingPipelineDesc& GetDesc() const override { return m_Desc; }
+    const RHIShaderTable& GetShaderTable() const override { return m_ShaderTable; }
     
 protected:
     void SetNameInternal() override;
@@ -220,7 +220,7 @@ private:
     std::vector<VkShaderModule> m_ShaderModules;
     std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_ShaderGroups;
-    std::unique_ptr<VulkanShaderTable> m_ShaderTable;
+    VulkanShaderTable m_ShaderTable;
     VkPipeline m_PipelineState;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_PipelineProperties;
 };

@@ -64,10 +64,10 @@ bool VulkanSwapChain::Init()
         vkGetPhysicalDeviceSurfaceFormatsKHR(m_Device.GetPhysicalDevice(), m_SurfaceHandle, &formatCount, availableSurfaceformats.data());
     }
 
-    if (m_Desc.Format == ERHIFormat::SRGBA8_UNORM)
-        m_Desc.Format = ERHIFormat::SBGRA8_UNORM;
-    else if (m_Desc.Format == ERHIFormat::RGBA8_UNORM)
-        m_Desc.Format = ERHIFormat::BGRA8_UNORM;
+    // if (m_Desc.Format == ERHIFormat::SRGBA8_UNORM)
+    //     m_Desc.Format = ERHIFormat::SBGRA8_UNORM;
+    // else if (m_Desc.Format == ERHIFormat::RGBA8_UNORM)
+    //     m_Desc.Format = ERHIFormat::BGRA8_UNORM;
 
     m_SwapChainFormat = RHI::Vulkan::ConvertFormat(m_Desc.Format);
     m_SwapChainColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;

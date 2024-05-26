@@ -5,6 +5,7 @@
 
 class D3D12Device;
 class D3D12Texture;
+class D3D12Buffer;
 
 ///////////////////////////////////////////////////////////////////////////////////
 /// D3D12PipelineBindingLayout
@@ -177,18 +178,19 @@ private:
 class D3D12ShaderTable : public RHIShaderTable
 {
 public:
-    const RHIShaderTableEntry& GetRayGenShaderEntry() const { return m_RayGenerationShaderRecord; }
-    const RHIShaderTableEntry& GetMissShaderEntry() const { return m_MissShaderRecord; }
-    const RHIShaderTableEntry& GetHitGroupEntry() const { return m_HitGroupRecord; }
-    const RHIShaderTableEntry& GetCallableShaderEntry() const { return m_CallableShaderRecord; }
+    ~D3D12ShaderTable() override;
+    const RHIShaderTableEntry& GetRayGenShaderEntry() const override { return m_RayGenerationShaderRecord; }
+    const RHIShaderTableEntry& GetMissShaderEntry() const override { return m_MissShaderRecord; }
+    const RHIShaderTableEntry& GetHitGroupEntry() const override { return m_HitGroupRecord; }
+    const RHIShaderTableEntry& GetCallableShaderEntry() const override { return m_CallableShaderRecord; }
     
 private:
     friend class D3D12RayTracingPipeline;
-    Microsoft::WRL::ComPtr<ID3D12Resource>              m_ShaderTableBuffer;
-    RHIShaderTableEntry                                    m_RayGenerationShaderRecord;
-    RHIShaderTableEntry                                    m_MissShaderRecord;
-    RHIShaderTableEntry                                    m_HitGroupRecord;
-    RHIShaderTableEntry                                    m_CallableShaderRecord;
+    RefCountPtr<D3D12Buffer> m_ShaderTableBuffer;
+    RHIShaderTableEntry m_RayGenerationShaderRecord;
+    RHIShaderTableEntry m_MissShaderRecord;
+    RHIShaderTableEntry m_HitGroupRecord;
+    RHIShaderTableEntry m_CallableShaderRecord;
 };
 
 class D3D12RayTracingPipeline : public RHIRayTracingPipeline
@@ -199,7 +201,7 @@ public:
     void Shutdown() override;
     bool IsValid() const override;
     const RHIRayTracingPipelineDesc& GetDesc() const override { return m_Desc; }
-    const RHIShaderTable& GetShaderTable() const override { return *m_ShaderTable; }
+    const RHIShaderTable& GetShaderTable() const override { return m_ShaderTable; }
     ID3D12PipelineState* GetPipelineState() const { return m_PipelineState.Get(); }
     
 protected:
@@ -212,8 +214,8 @@ private:
 
     D3D12Device& m_Device;
     RHIRayTracingPipelineDesc m_Desc;
-    std::unique_ptr<D3D12ShaderTable> m_ShaderTable;
+    D3D12ShaderTable m_ShaderTable;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PipelineState;
     Microsoft::WRL::ComPtr<ID3D12StateObjectProperties> m_PipelineProperties;
-    std::vector<std::wstring> m_ShaderGroupNames;
+    
 };

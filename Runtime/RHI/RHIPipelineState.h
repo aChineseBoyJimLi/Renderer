@@ -271,13 +271,13 @@ public:
 struct RHIRayGenShaderGroup
 {
     RHIShader* RayGenShader = nullptr;
-    RHIPipelineBindingLayout* LocalBindingLayout = nullptr;
+    RHIPipelineBindingLayout* LocalBindingLayout = nullptr; // Not support yet
 };
 
 struct RHIMissShaderGroup
 {
     RHIShader* MissShader = nullptr;
-    RHIPipelineBindingLayout* LocalBindingLayout = nullptr; 
+    RHIPipelineBindingLayout* LocalBindingLayout = nullptr; // Not support yet
 };
 
 struct RHIHitGroup
@@ -285,21 +285,26 @@ struct RHIHitGroup
     RHIShader* ClosestHitShader = nullptr;
     RHIShader* AnyHitShader = nullptr;
     RHIShader* IntersectionShader = nullptr;
-    RHIPipelineBindingLayout* LocalBindingLayout = nullptr;
+    RHIPipelineBindingLayout* LocalBindingLayout = nullptr; // Not support yet
     bool isProceduralPrimitive = false;
 };
 
 struct RHIShaderTableEntry
 {
-    RHIResourceGpuAddress StartAddress;
-    uint64_t SizeInBytes;
-    uint64_t StrideInBytes;
+    RHIResourceGpuAddress StartAddress = 0;
+    uint64_t SizeInBytes = 0;
+    uint64_t StrideInBytes = 0;
 };
 
-class RHIShaderTable : public RefCounter
+class RHIShaderTable
 {
 public:
     virtual ~RHIShaderTable() = default;
+    RHIShaderTable() = default;
+    RHIShaderTable(const RHIShaderTable&) = delete;
+    RHIShaderTable(RHIShaderTable&&) = delete;
+    RHIShaderTable& operator=(const RHIShaderTable&) = delete;
+    RHIShaderTable& operator=(const RHIShaderTable&&) = delete;
     virtual const RHIShaderTableEntry& GetRayGenShaderEntry() const = 0;
     virtual const RHIShaderTableEntry& GetMissShaderEntry() const = 0;
     virtual const RHIShaderTableEntry& GetHitGroupEntry() const = 0;

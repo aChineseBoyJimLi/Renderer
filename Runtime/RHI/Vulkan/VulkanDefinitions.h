@@ -51,5 +51,5 @@ namespace RHI::Vulkan
     void                    TranslateRasterizerState(const RHIRasterizerDesc& inState, VkPipelineRasterizationStateCreateInfo& outState);
     VkImageAspectFlags      GuessImageAspectFlags(ERHIFormat inFormat);
     uint32_t                GetBindingSlot(ERHIRegisterType registerType, uint32_t inRegisterSlot);
-    
+    VkGeometryFlagsKHR      ConvertGeometryFlags(ERHIRayTracingGeometryFlags inFlags);
 }

@@ -58,7 +58,7 @@ public:
     void DispatchIndirect(RefCountPtr<RHIBuffer>& indirectCommands, uint32_t count, size_t commandsBufferOffset = 0) override;
     void DispatchMesh(uint32_t threadGroupX, uint32_t threadGroupY, uint32_t threadGroupZ) override;
     void DispatchMeshIndirect(RefCountPtr<RHIBuffer>& indirectCommands, uint32_t count, size_t commandsBufferOffset = 0) override;
-    void DispatchRays(uint32_t width, uint32_t height, uint32_t depth, RefCountPtr<RHIShaderTable>& shaderTable) override;
+    void DispatchRays(uint32_t width, uint32_t height, uint32_t depth, const RHIShaderTable& shaderTable) override;
     
     bool IsClosed() const override { return m_IsClosed; }
     ERHICommandQueueType GetQueueType() const override { return m_QueueType; }

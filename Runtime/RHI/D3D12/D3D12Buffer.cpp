@@ -77,7 +77,7 @@ bool D3D12Buffer::Init()
 
     if((m_Desc.Usages & ERHIBufferUsage::AccelerationStructureStorage) == ERHIBufferUsage::AccelerationStructureStorage)
     {
-        // flags |= D3D12_RESOURCE_FLAG_RAYTRACING_ACCELERATION_STRUCTURE;
+        m_InitialStates |= D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
         flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
     }
 

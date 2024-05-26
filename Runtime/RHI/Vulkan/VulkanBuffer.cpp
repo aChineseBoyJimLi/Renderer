@@ -14,6 +14,16 @@ RefCountPtr<RHIBuffer> VulkanDevice::CreateBuffer(const RHIBufferDesc& inDesc, b
     return buffer;
 }
 
+RefCountPtr<VulkanBuffer> VulkanDevice::CreateVulkanBuffer(const RHIBufferDesc& inDesc, bool isVirtual)
+{
+    RefCountPtr<VulkanBuffer> buffer(new VulkanBuffer(*this, inDesc, isVirtual));
+    if(!buffer->Init())
+    {
+        Log::Error("[Vulkan] Failed to create buffer");
+    }
+    return buffer;
+}
+
 VulkanBuffer::VulkanBuffer(VulkanDevice& inDevice, const RHIBufferDesc& inDesc, bool inIsVirtual)
     : IsVirtualBuffer(inIsVirtual)
     , IsManagedBuffer(true)
