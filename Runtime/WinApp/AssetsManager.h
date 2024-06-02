@@ -87,9 +87,9 @@ namespace AssetsManager
     };
     
     std::shared_ptr<Blob>           LoadShaderImmediately(const char* inShaderName);
+    std::shared_ptr<Blob>           LoadFontImmediately(const char* inFontName);
     std::shared_ptr<Mesh>           LoadMeshImmediately(const char* inMeshName);
     std::shared_ptr<Texture>        LoadTextureImmediately(const char* inTextureName, bool sRGB = false);
-    
     void                            ChangeShaderPath(const char* inPath);
     const std::filesystem::path&    GetShaderPath();
 }

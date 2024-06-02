@@ -341,6 +341,17 @@ namespace AssetsManager
         return blob;
     }
 
+    std::shared_ptr<Blob> LoadFontImmediately(const char* inFontName)
+    {
+        const std::filesystem::path path = s_AssetsPath / inFontName;
+        std::shared_ptr<Blob> blob = std::make_shared<Blob>();
+        if(!blob->ReadBinaryFile(path))
+        {
+            return nullptr;
+        }
+        return blob;
+    }
+
     std::shared_ptr<Mesh> LoadMeshImmediately(const char* inMeshName)
     {
         const std::filesystem::path path = s_AssetsPath / inMeshName;

@@ -38,8 +38,8 @@ public:
     virtual void ResourceBarrier(RefCountPtr<RHITexture>& inResource, ERHIResourceStates inAfterState) = 0;
     virtual void ResourceBarrier(RefCountPtr<RHIBuffer>& inResource, ERHIResourceStates inAfterState) = 0;
     virtual void SetResourceSet(RefCountPtr<RHIResourceSet>& inResourceSet) = 0;
-    virtual void SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer) = 0;
-    virtual void SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer) = 0;
+    virtual void SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset = 0) = 0;
+    virtual void SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset = 0) = 0;
     
     virtual void CopyBuffer(RefCountPtr<RHIBuffer>& dstBuffer, size_t dstOffset, RefCountPtr<RHIBuffer>& srcBuffer, size_t srcOffset, size_t size) = 0;
     virtual void CopyBufferToTexture(RefCountPtr<RHITexture>& dstTexture, RefCountPtr<RHIBuffer>& srcBuffer) = 0;

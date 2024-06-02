@@ -360,27 +360,27 @@ void D3D12CommandList::CopyBufferToTexture(RefCountPtr<RHITexture>& dstTexture, 
     }
 }
 
-void D3D12CommandList::SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer)
+void D3D12CommandList::SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset)
 {
     if(IsValid() && !IsClosed())
     {
         const RHIBufferDesc& bufferDesc = inBuffer->GetDesc();
         D3D12_VERTEX_BUFFER_VIEW vbv{};
-        vbv.BufferLocation = inBuffer->GetGpuAddress();
+        vbv.BufferLocation = inBuffer->GetGpuAddress() + inOffset;
         vbv.StrideInBytes = (uint32_t)bufferDesc.Stride;
         vbv.SizeInBytes = (uint32_t)bufferDesc.Size;
         m_CmdListHandle->IASetVertexBuffers(0, 1, &vbv);
     }
 }
 
-void D3D12CommandList::SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer)
+void D3D12CommandList::SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset)
 {
     if(IsValid() && !IsClosed())
     {
         const RHIBufferDesc& bufferDesc = inBuffer->GetDesc();
         D3D12_INDEX_BUFFER_VIEW ibv{};
         ibv.SizeInBytes = (uint32_t)bufferDesc.Size;
-        ibv.BufferLocation = inBuffer->GetGpuAddress();
+        ibv.BufferLocation = inBuffer->GetGpuAddress() + inOffset;
         ibv.Format = RHI::D3D12::ConvertFormat(bufferDesc.Format);
         m_CmdListHandle->IASetIndexBuffer(&ibv);
     }
@@ -608,7 +608,7 @@ ID3D12CommandSignature* D3D12CommandList::GetDispatchMeshCommandSignature()
 {
     if(m_DispatchCommandSignature == nullptr)
     {
-        if(!CreateCommandSignature(D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH, sizeof(RHIDispatchMeshArguments), m_DispatchMeshCommandSignature))
+        if(!CreateCommandSignature(D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH, sizeof(RHIDispatchArguments), m_DispatchMeshCommandSignature))
         {
             return nullptr;
         }

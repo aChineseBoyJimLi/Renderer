@@ -37,8 +37,8 @@ public:
     void SetViewports(const std::vector<RHIViewport>& inViewports) override;
     void SetScissorRects(const std::vector<RHIRect>& inRects) override;
 
-    void SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer) override;
-    void SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset = 0) override;
+    void SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset = 0) override;
     
     void ResourceBarrier(RefCountPtr<RHITexture>& inResource , ERHIResourceStates inAfterState) override;
     void ResourceBarrier(RefCountPtr<RHIBuffer>& inResource, ERHIResourceStates inAfterState) override;

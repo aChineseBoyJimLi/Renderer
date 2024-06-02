@@ -10,8 +10,9 @@ class Win32Base
 {
 public:
     Win32Base(uint32_t inWidth, uint32_t inHeight, HINSTANCE inHInstance, const char* inTitle);
-    void Run();
     virtual ~Win32Base();
+    void Run();
+    const Timer& GetTimer() const { return m_Timer; }
 
 protected:
     virtual bool Init() { return true;}
@@ -35,9 +36,9 @@ protected:
     HINSTANCE const m_hInstance;
     HWND m_hWnd;
     bool m_IsRunning = true;
-    Timer m_Timer;
 
 private:
+    Timer m_Timer;
     static std::list<Win32Base*> s_Listeners;
     static LRESULT CALLBACK MsgProc(HWND HWnd, UINT Msg, WPARAM WParam, LPARAM LParam);
 };

@@ -401,7 +401,6 @@ void RhiTestApp::CreateResources()
     
     m_CopyCommandList->End();
 
-    std::vector<RHISemaphoreRef> semaphores { m_Semaphore }; 
     RHI::GetDevice()->AddQueueSignalSemaphore(ERHICommandQueueType::Copy, m_Semaphore);
     RHI::GetDevice()->ExecuteCommandList(m_CopyCommandList);
     

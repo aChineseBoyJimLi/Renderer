@@ -19,6 +19,7 @@ namespace Log
     Callback    GetCallback();
     void        ResetCallback();
     void        Message(ELogLevel inLevel, const char* inFormat, ...);
+    void        Message(ELogLevel inLevel, const wchar_t* inFormat, ...);
     void        Debug(const char* inFormat, ...);
     void        Info(const char* inFormat, ...);
     void        Warning(const char* inFormat, ...);

@@ -102,6 +102,34 @@ namespace Log
         va_end(args);
     }
 
+    void Message(ELogLevel inLevel, const wchar_t* inFormat, ...)
+    {
+        if (static_cast<int>(gMinLogLevel) > static_cast<int>(inLevel))
+            return;
+
+        std::lock_guard lock(gLogMutex);
+        
+
+        if(gMessageBuffer == nullptr)
+        {
+            gMessageBuffer = malloc(gMessageBufferSize);
+        }
+
+        va_list args;
+        va_start(args, inFormat);
+
+        uint32_t strSize = _vscwprintf(inFormat, args) + 1;
+
+        if(strSize < gMessageBufferSize)
+        {
+            wchar_t* message = new (gMessageBuffer) wchar_t[strSize];
+            vswprintf(message, strSize, inFormat, args);
+            OutputDebugStringW(message);
+            OutputDebugStringW(L"\n");
+        }
+        va_end(args);
+    }
+
     void Debug(const char* inFormat, ...)
     {
         if (static_cast<int>(gMinLogLevel) > static_cast<int>(ELogLevel::Debug))
@@ -142,7 +170,7 @@ namespace Log
         va_list args;
         va_start(args, inFormat);
         uint32_t strSize = _vscprintf(inFormat, args) + 1;
-        if(strSize < gMessageBufferSize)
+        if(strSize > 0 && strSize < gMessageBufferSize)
         {
             char* message = new (gMessageBuffer) char[strSize];
             vsnprintf(message, strSize, inFormat, args);

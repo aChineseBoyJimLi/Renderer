@@ -534,7 +534,7 @@ void VulkanCommandList::DispatchMeshIndirect(RefCountPtr<RHIBuffer>& indirectCom
         VulkanBuffer* buffer = CheckCast<VulkanBuffer*>(indirectCommands.GetReference());
         if(buffer && buffer->IsValid())
         {
-            m_Device.vkCmdDrawMeshTasksIndirectEXT(m_CmdBufferHandle, buffer->GetBuffer(), commandsBufferOffset, count, sizeof(RHIDispatchMeshArguments));
+            m_Device.vkCmdDrawMeshTasksIndirectEXT(m_CmdBufferHandle, buffer->GetBuffer(), commandsBufferOffset, count, sizeof(RHIDispatchArguments));
         }
     }
 }
@@ -567,18 +567,18 @@ void VulkanCommandList::DispatchRays(uint32_t width, uint32_t height, uint32_t d
     }
 }
 
-void VulkanCommandList::SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer)
+void VulkanCommandList::SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset)
 {
     if(IsValid() && !IsClosed())
     {
         const VulkanBuffer* buffer = CheckCast<VulkanBuffer*>(inBuffer.GetReference());
         VkBuffer bufferVk = buffer->GetBuffer();
-        VkDeviceSize offset = 0;
+        VkDeviceSize offset = inOffset;
         vkCmdBindVertexBuffers(m_CmdBufferHandle, 0, 1, &bufferVk, &offset);
     }
 }
 
-void VulkanCommandList::SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer)
+void VulkanCommandList::SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset)
 {
     if(IsValid() && !IsClosed())
     {
@@ -594,7 +594,7 @@ void VulkanCommandList::SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer)
             type = VK_INDEX_TYPE_UINT16;
         else
             type = VK_INDEX_TYPE_UINT8_EXT;
-        vkCmdBindIndexBuffer(m_CmdBufferHandle, buffer->GetBuffer(), 0, type);
+        vkCmdBindIndexBuffer(m_CmdBufferHandle, buffer->GetBuffer(), inOffset, type);
     }
 }
 

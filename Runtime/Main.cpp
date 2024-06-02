@@ -1,21 +1,26 @@
 #include <memory>
 #include <iostream>
-#include "WinApp/RhiTestApp.h"
+#include "RDG/RDG.h"
+#include "WinApp/AudioTest.h"
 #include "Core/Log.h"
+#include "WinApp/ImguiTestApp.h"
+#include "WinApp/RDGTestApp.h"
 
 void RunApp(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    RHI::Init(false);
-    std::unique_ptr<RhiTestApp> app = std::make_unique<RhiTestApp>(380
+    RHI::Init(true);
+    RDG::Init();
+    std::unique_ptr<RDGTestApp> app = std::make_unique<RDGTestApp>(380
             , 200
             , hInstance
-            , TEXT("RhiTestApp App"));
+            , TEXT("RDG Test App"));
         
     app->Run();
 }
 
 void PostCleanup()
 {
+    RDG::Shutdown();
     RHI::Shutdown();
 }
 

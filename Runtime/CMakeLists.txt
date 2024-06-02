@@ -1,8 +1,11 @@
 set(project Runtime)
 
 file(GLOB_RECURSE CORE_SOURCES Core/*.cpp Core/*.h)
+file(GLOB RDG_SOURCES RDG/*.cpp RDG/*.h)
 file(GLOB RHI_SOURCES RHI/*.cpp RHI/*.h)
 file(GLOB RHI_D3D12_SOURCES RHI/D3D12/*.cpp RHI/D3D12/*.h)
+file(GLOB PASSES_SOURCES Passes/*.cpp Passes/*.h)
+
 if(vulkan_lib)
     file(GLOB RHI_VULKAN_SOURCES RHI/Vulkan/*.cpp RHI/Vulkan/*.h)
 else()
@@ -14,10 +17,12 @@ file(GLOB SOURCES *.cpp *.h)
 add_executable(${project} WIN32 
     ${CORE_SOURCES}
     ${RHI_SOURCES}
+    ${RDG_SOURCES}
     ${RHI_D3D12_SOURCES}
     ${RHI_VULKAN_SOURCES}
     ${APP_SOURCES}
     ${SOURCES}
+    ${PASSES_SOURCES}
 )
 
 add_dependencies(${project} Shaders DirectXMesh DirectXTex imgui)

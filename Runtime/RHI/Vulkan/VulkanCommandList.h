@@ -59,8 +59,8 @@ public:
     void DispatchMeshIndirect(RefCountPtr<RHIBuffer>& indirectCommands, uint32_t count, size_t commandsBufferOffset = 0) override;
     void DispatchRays(uint32_t width, uint32_t height, uint32_t depth, const RHIShaderTable& shaderTable) override;
     
-    void SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer) override;
-    void SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer) override;
+    void SetVertexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset = 0) override;
+    void SetIndexBuffer(const RefCountPtr<RHIBuffer>& inBuffer, size_t inOffset = 0) override;
     void SetViewports(const std::vector<RHIViewport>& inViewports) override;
     void SetScissorRects(const std::vector<RHIRect>& inRects) override;
     bool IsClosed() const override { return m_IsClosed; }

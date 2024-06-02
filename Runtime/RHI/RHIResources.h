@@ -182,6 +182,15 @@ struct RHITextureDesc
     uint32_t SampleCount = 1;
     ERHITextureUsage Usages = ERHITextureUsage::ShaderResource;
     RHIClearValue ClearValue = RHIClearValue::Transparent;
+
+    static RHITextureDesc Texture2D(uint32_t inWidth, uint32_t inHeight, ERHIFormat inFormat)
+    {
+        RHITextureDesc desc;
+        desc.Width = inWidth;
+        desc.Height = inHeight;
+        desc.Format = inFormat;
+        return desc;
+    }
 };
 
 struct RHITextureSubResource

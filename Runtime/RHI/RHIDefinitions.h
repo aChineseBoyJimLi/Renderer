@@ -33,7 +33,7 @@ public:
     virtual void Shutdown() {}
     virtual bool IsValid() const { return true; }
     
-    void SetName(const std::string& name)
+    void SetName(std::string_view name)
     {
         m_Name = name;
         SetNameInternal();
@@ -164,13 +164,6 @@ struct RHIDrawIndexedArguments
 };
 
 struct RHIDispatchArguments
-{
-    uint32_t ThreadGroupX;
-    uint32_t ThreadGroupY;
-    uint32_t ThreadGroupZ;
-};
-
-struct RHIDispatchMeshArguments
 {
     uint32_t ThreadGroupX;
     uint32_t ThreadGroupY;
